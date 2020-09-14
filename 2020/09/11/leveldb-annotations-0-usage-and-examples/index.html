@@ -1,178 +1,278 @@
-<!DOCTYPE HTML>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"chielungcheung.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="基本介绍 特性 局限性 性能 测试配置 写性能 读性能     使用举例 构建 头文件介绍 打开(或新建)一个数据库 Status 类型 关闭数据库 数据库读写 原子更新 同步写操作 并发 迭代数据库 快照 Slice 切片 比较器 后向兼容性   性能调优 Block 大小 压缩 缓存 Key 的布局设计 过滤器   校验和 近似空间大小 环境变量 移植性      Leveldb 是一个">
+<meta property="og:type" content="article">
+<meta property="og:title" content="leveldb 原理详解系列之零: 基本介绍与使用举例">
+<meta property="og:url" content="https://chielungcheung.github.io/2020/09/11/leveldb-annotations-0-usage-and-examples/index.html">
+<meta property="og:site_name" content="programatrix">
+<meta property="og:description" content="基本介绍 特性 局限性 性能 测试配置 写性能 读性能     使用举例 构建 头文件介绍 打开(或新建)一个数据库 Status 类型 关闭数据库 数据库读写 原子更新 同步写操作 并发 迭代数据库 快照 Slice 切片 比较器 后向兼容性   性能调优 Block 大小 压缩 缓存 Key 的布局设计 过滤器   校验和 近似空间大小 环境变量 移植性      Leveldb 是一个">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-09-11T21:13:08.000Z">
+<meta property="article:modified_time" content="2020-09-14T09:52:13.597Z">
+<meta property="article:author" content="Chienlung Cheung">
+<meta property="article:tag" content="leveldb">
+<meta property="article:tag" content="LSM-Tree">
+<meta property="article:tag" content="db">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://chielungcheung.github.io/2020/09/11/leveldb-annotations-0-usage-and-examples/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>leveldb 原理详解系列之零: 基本介绍与使用举例 | programatrix</title>
   
-  <title>leveldb 原理详解系列之零: 基本介绍与使用举例 | programatrix | Be the change you wish to see in the world.</title>
-
-  
-  <meta name="author" content="Chienlung Cheung">
-  
-
-  
-  <meta name="description" content="基本介绍
-特性
-局限性
-性能
-测试配置
-写性能
-读性能
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-177829579-1"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'UA-177829579-1');
+      }
+    </script>
 
 
 
 
-使用举例
-构建
-头文件介绍
-打开(或新建)一个数据库
-Status 类型
-关闭数据库
-数据库读写
-原子更新
-同步写操作
-并发
-迭代数据库
-快照
-Slice 切片
-比较器
-后向兼容性
 
 
-性能调优
-Block 大小
-压缩
-缓存
-Key 的">
-  
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
 
-  
-  
-  <meta name="keywords" content="leveldb,LSM-Tree,db">
-  
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
 
-  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
 
-  <meta property="og:title" content="leveldb 原理详解系列之零: 基本介绍与使用举例"/>
+</head>
 
-  <meta property="og:site_name" content="programatrix"/>
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
 
-  
-  <meta property="og:image" content="/favicon.ico"/>
-  
-
-  <link href="/favicon.ico" rel="icon">
-  <link rel="alternate" href="/atom.xml" title="programatrix" type="application/atom+xml">
-  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
-<meta name="generator" content="Hexo 5.1.1"></head>
-
-
-<body>
-<div class="blog">
-  <div class="content">
-
-    <header>
-  <div class="site-branding">
-    <h1 class="site-title">
-      <a href="/">programatrix</a>
-    </h1>
-    <p class="site-description">Be the change you wish to see in the world.</p>
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
   </div>
-  <nav class="site-navigation">
-    <ul>
-      
-        <li><a href="/">Home</a></li>
-      
-        <li><a href="/archives">Archives</a></li>
-      
-        <li><a href="/categories">Categories</a></li>
-      
-    </ul>
-  </nav>
-</header>
 
-    <main class="site-main posts-loop">
-    <article>
+  <div class="site-meta">
 
-  
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">programatrix</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Be the change you wish to see in the world.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
     
-    <h3 class="article-title"><span>leveldb 原理详解系列之零: 基本介绍与使用举例</span></h3>
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
     
   
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://chielungcheung.github.io/2020/09/11/leveldb-annotations-0-usage-and-examples/">
 
-  <div class="article-top-meta">
-    <span class="posted-on">
-      <a href="/2020/09/11/leveldb-annotations-0-usage-and-examples/" rel="bookmark">
-        <time class="entry-date published" datetime="2020-09-11T21:13:08.000Z">
-          2020-09-11
-        </time>
-      </a>
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Chienlung Cheung">
+      <meta itemprop="description" content="">
     </span>
-  </div>
 
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="programatrix">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          leveldb 原理详解系列之零: 基本介绍与使用举例
+        </h1>
 
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2020-09-11 21:13:08" itemprop="dateCreated datePublished" datetime="2020-09-11T21:13:08+00:00">2020-09-11</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2020-09-14 09:52:13" itemprop="dateModified" datetime="2020-09-14T09:52:13+00:00">2020-09-14</time>
+              </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Disqus: </span>
+    
+    <a title="disqus" href="/2020/09/11/leveldb-annotations-0-usage-and-examples/#disqus_thread" itemprop="discussionUrl">
+      <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2020/09/11/leveldb-annotations-0-usage-and-examples/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
   
 
-  <div class="article-content">
-    <div class="entry">
-      
-        <div class="toc">
+        </div>
+      </header>
 
-<!-- toc -->
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <!-- toc -->
 
 <ul>
-<li><a href="#ji-ben-jie-shao">基本介绍</a><ul>
-<li><a href="#te-xing">特性</a></li>
-<li><a href="#ju-xian-xing">局限性</a></li>
-<li><a href="#xing-neng">性能</a><ul>
-<li><a href="#ce-shi-pei-zhi">测试配置</a></li>
-<li><a href="#xie-xing-neng">写性能</a></li>
-<li><a href="#du-xing-neng">读性能</a></li>
+<li><a href="#%E5%9F%BA%E6%9C%AC%E4%BB%8B%E7%BB%8D">基本介绍</a><ul>
+<li><a href="#%E7%89%B9%E6%80%A7">特性</a></li>
+<li><a href="#%E5%B1%80%E9%99%90%E6%80%A7">局限性</a></li>
+<li><a href="#%E6%80%A7%E8%83%BD">性能</a><ul>
+<li><a href="#%E6%B5%8B%E8%AF%95%E9%85%8D%E7%BD%AE">测试配置</a></li>
+<li><a href="#%E5%86%99%E6%80%A7%E8%83%BD">写性能</a></li>
+<li><a href="#%E8%AF%BB%E6%80%A7%E8%83%BD">读性能</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a href="#shi-yong-ju-li">使用举例</a><ul>
-<li><a href="#gou-jian">构建</a></li>
-<li><a href="#tou-wen-jian-jie-shao">头文件介绍</a></li>
-<li><a href="#da-kai-huo-xin-jian-yi-ge-shu-ju-ku">打开(或新建)一个数据库</a></li>
-<li><a href="#status-lei-xing">Status 类型</a></li>
-<li><a href="#guan-bi-shu-ju-ku">关闭数据库</a></li>
-<li><a href="#shu-ju-ku-du-xie">数据库读写</a></li>
-<li><a href="#yuan-zi-geng-xin">原子更新</a></li>
-<li><a href="#tong-bu-xie-cao-zuo">同步写操作</a></li>
-<li><a href="#bing-fa">并发</a></li>
-<li><a href="#die-dai-shu-ju-ku">迭代数据库</a></li>
-<li><a href="#kuai-zhao">快照</a></li>
-<li><a href="#slice-qie-pian">Slice 切片</a></li>
-<li><a href="#bi-jiao-qi">比较器</a><ul>
-<li><a href="#hou-xiang-jian-rong-xing">后向兼容性</a></li>
+<li><a href="#%E4%BD%BF%E7%94%A8%E4%B8%BE%E4%BE%8B">使用举例</a><ul>
+<li><a href="#%E6%9E%84%E5%BB%BA">构建</a></li>
+<li><a href="#%E5%A4%B4%E6%96%87%E4%BB%B6%E4%BB%8B%E7%BB%8D">头文件介绍</a></li>
+<li><a href="#%E6%89%93%E5%BC%80%E6%88%96%E6%96%B0%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%95%B0%E6%8D%AE%E5%BA%93">打开(或新建)一个数据库</a></li>
+<li><a href="#status-%E7%B1%BB%E5%9E%8B">Status 类型</a></li>
+<li><a href="#%E5%85%B3%E9%97%AD%E6%95%B0%E6%8D%AE%E5%BA%93">关闭数据库</a></li>
+<li><a href="#%E6%95%B0%E6%8D%AE%E5%BA%93%E8%AF%BB%E5%86%99">数据库读写</a></li>
+<li><a href="#%E5%8E%9F%E5%AD%90%E6%9B%B4%E6%96%B0">原子更新</a></li>
+<li><a href="#%E5%90%8C%E6%AD%A5%E5%86%99%E6%93%8D%E4%BD%9C">同步写操作</a></li>
+<li><a href="#%E5%B9%B6%E5%8F%91">并发</a></li>
+<li><a href="#%E8%BF%AD%E4%BB%A3%E6%95%B0%E6%8D%AE%E5%BA%93">迭代数据库</a></li>
+<li><a href="#%E5%BF%AB%E7%85%A7">快照</a></li>
+<li><a href="#slice-%E5%88%87%E7%89%87">Slice 切片</a></li>
+<li><a href="#%E6%AF%94%E8%BE%83%E5%99%A8">比较器</a><ul>
+<li><a href="#%E5%90%8E%E5%90%91%E5%85%BC%E5%AE%B9%E6%80%A7">后向兼容性</a></li>
 </ul>
 </li>
-<li><a href="#xing-neng-diao-you">性能调优</a><ul>
-<li><a href="#block-da-xiao">Block 大小</a></li>
-<li><a href="#ya-suo">压缩</a></li>
-<li><a href="#huan-cun">缓存</a></li>
-<li><a href="#key-de-bu-ju-she-ji">Key 的布局设计</a></li>
-<li><a href="#guo-lu-qi">过滤器</a></li>
+<li><a href="#%E6%80%A7%E8%83%BD%E8%B0%83%E4%BC%98">性能调优</a><ul>
+<li><a href="#block-%E5%A4%A7%E5%B0%8F">Block 大小</a></li>
+<li><a href="#%E5%8E%8B%E7%BC%A9">压缩</a></li>
+<li><a href="#%E7%BC%93%E5%AD%98">缓存</a></li>
+<li><a href="#key-%E7%9A%84%E5%B8%83%E5%B1%80%E8%AE%BE%E8%AE%A1">Key 的布局设计</a></li>
+<li><a href="#%E8%BF%87%E6%BB%A4%E5%99%A8">过滤器</a></li>
 </ul>
 </li>
-<li><a href="#xiao-yan-he">校验和</a></li>
-<li><a href="#jin-si-kong-jian-da-xiao">近似空间大小</a></li>
-<li><a href="#huan-jing-bian-liang">环境变量</a></li>
-<li><a href="#yi-zhi-xing">移植性</a></li>
+<li><a href="#%E6%A0%A1%E9%AA%8C%E5%92%8C">校验和</a></li>
+<li><a href="#%E8%BF%91%E4%BC%BC%E7%A9%BA%E9%97%B4%E5%A4%A7%E5%B0%8F">近似空间大小</a></li>
+<li><a href="#%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F">环境变量</a></li>
+<li><a href="#%E7%A7%BB%E6%A4%8D%E6%80%A7">移植性</a></li>
 </ul>
 </li>
 </ul>
 <!-- tocstop -->
 
-</div>
-
 <p><strong>Leveldb</strong> 是一个高速 KV 数据库, 它提供了一个持久性的 KV 存储. 其中 keys 和 values 都是随机字节数组, 并且存储时根据用户指定的比较函数对 keys 进行排序. </p>
-<p>它由 Google 开发的, 其作者为大名鼎鼎的 Sanjay Ghemawat (<a href="mailto:&#115;&#x61;&#110;&#x6a;&#x61;&#121;&#64;&#x67;&#x6f;&#111;&#103;&#108;&#101;&#x2e;&#x63;&#111;&#109;">&#115;&#x61;&#110;&#x6a;&#x61;&#121;&#64;&#x67;&#x6f;&#111;&#103;&#108;&#101;&#x2e;&#x63;&#111;&#109;</a>) 和 Jeff Dean (<a href="mailto:&#106;&#x65;&#102;&#x66;&#64;&#x67;&#111;&#x6f;&#x67;&#x6c;&#101;&#x2e;&#x63;&#111;&#x6d;">&#106;&#x65;&#102;&#x66;&#64;&#x67;&#111;&#x6f;&#x67;&#x6c;&#101;&#x2e;&#x63;&#111;&#x6d;</a>). 感谢他们对人类的贡献.</p>
-<h1><span id="ji-ben-jie-shao">基本介绍</span><a href="#ji-ben-jie-shao" class="header-anchor">#</a></h1><p>该部分主要介绍 leveldb 的功能, 局限性以及性能等.</p>
-<h2><span id="te-xing">特性</span><a href="#te-xing" class="header-anchor">#</a></h2><ul>
+<p>它由 Google 开发的, 其作者为大名鼎鼎的 Sanjay Ghemawat (<a href="mailto:&#115;&#97;&#110;&#x6a;&#x61;&#x79;&#64;&#x67;&#x6f;&#x6f;&#103;&#x6c;&#x65;&#46;&#x63;&#111;&#109;">&#115;&#97;&#110;&#x6a;&#x61;&#x79;&#64;&#x67;&#x6f;&#x6f;&#103;&#x6c;&#x65;&#46;&#x63;&#111;&#109;</a>) 和 Jeff Dean (<a href="mailto:&#106;&#x65;&#102;&#x66;&#x40;&#103;&#x6f;&#111;&#103;&#x6c;&#101;&#46;&#99;&#x6f;&#109;">&#106;&#x65;&#102;&#x66;&#x40;&#103;&#x6f;&#111;&#103;&#x6c;&#101;&#46;&#99;&#x6f;&#109;</a>). 感谢他们对人类的贡献.</p>
+<h1><span id="基本介绍">基本介绍</span></h1><p>该部分主要介绍 leveldb 的功能, 局限性以及性能等.</p>
+<h2><span id="特性">特性</span></h2><ul>
 <li>keys 和 values 都可以是随机的字节数组. </li>
 <li>数据被按照 key 的顺序进行存储. </li>
 <li>调用者可以提供一个定制的比较函数来覆盖默认的比较器. </li>
@@ -183,34 +283,34 @@ Key 的">
 <li>数据通过 <a target="_blank" rel="noopener" href="http://google.github.io/snappy/">Snappy</a> 压缩程序库自动压缩. </li>
 <li>与外部交互的操作都被抽象成了接口(如文件系统操作等), 所以用户可以根据接口定制自己期望的操作系统交互行为. </li>
 </ul>
-<h2><span id="ju-xian-xing">局限性</span><a href="#ju-xian-xing" class="header-anchor">#</a></h2><ul>
+<h2><span id="局限性">局限性</span></h2><ul>
 <li>LevelDB 不是 SQL 数据库. 它没有关系数据模型, 不支持 SQL 查询, 也不支持索引. </li>
 <li>同时只能有一个进程(可能是具有多线程的进程)访问一个特定的数据库. </li>
 <li>该程序库没有内置基于网络的 CS 架构, 有需求的用户可以自己封装. </li>
 </ul>
-<h2><span id="xing-neng">性能</span><a href="#xing-neng" class="header-anchor">#</a></h2><p>下面是通过运行 db_bench 程序得出的性能测试报告. </p>
-<h3><span id="ce-shi-pei-zhi">测试配置</span><a href="#ce-shi-pei-zhi" class="header-anchor">#</a></h3><p>我们使用的是一个包含一百万数据项的数据库,<br>其中 key 是 16 字节, value 是 100 字节, value 压缩后大约是原来的一半, 测试配置如下:</p>
+<h2><span id="性能">性能</span></h2><p>下面是通过运行 db_bench 程序得出的性能测试报告. </p>
+<h3><span id="测试配置">测试配置</span></h3><p>我们使用的是一个包含一百万数据项的数据库,<br>其中 key 是 16 字节, value 是 100 字节, value 压缩后大约是原来的一半, 测试配置如下:</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">LevelDB:    version 1.1</span><br><span class="line">Date:       Sun May  1 12:11:26 2011</span><br><span class="line">CPU:        4 x Intel(R) Core(TM)2 Quad CPU    Q6600  @ 2.40GHz</span><br><span class="line">CPUCache:   4096 KB</span><br><span class="line">Keys:       16 bytes each</span><br><span class="line">Values:     100 bytes each (50 bytes after compression)</span><br><span class="line">Entries:    1000000</span><br><span class="line">Raw Size:   110.6 MB (estimated)</span><br><span class="line">File Size:  62.9 MB (estimated)</span><br></pre></td></tr></table></figure>
 
-<h3><span id="xie-xing-neng">写性能</span><a href="#xie-xing-neng" class="header-anchor">#</a></h3><p>“fill” 基准测试创建了一个全新的数据库, 以顺序(下面 “seq” 结尾者)或者随机(下面 “random” 结尾者)方式写入. “fillsync” 基准测试每次写操作都将数据从操作系统刷到磁盘; 其它的操作会将数据保存在系统中一段时间. “overwrite” 基准测试做随机写, 这些操作会更新数据库中已有的键. </p>
+<h3><span id="写性能">写性能</span></h3><p>“fill” 基准测试创建了一个全新的数据库, 以顺序(下面 “seq” 结尾者)或者随机(下面 “random” 结尾者)方式写入. “fillsync” 基准测试每次写操作都将数据从操作系统刷到磁盘; 其它的操作会将数据保存在系统中一段时间. “overwrite” 基准测试做随机写, 这些操作会更新数据库中已有的键. </p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">fillseq      :       1.765 micros/op;   62.7 MB/s</span><br><span class="line">fillsync     :     268.409 micros/op;    0.4 MB/s (10000 ops)</span><br><span class="line">fillrandom   :       2.460 micros/op;   45.0 MB/s</span><br><span class="line">overwrite    :       2.380 micros/op;   46.5 MB/s</span><br></pre></td></tr></table></figure>
 <p>上述每个 “op” 对应一个 key/value 对的写操作. 也就是说, 一个随机写基准测试每秒大约进行四十万次写操作(1,000,000/2.46). </p>
 <p>每个 “fillsync” 操作时间消耗(大约 0.3 毫秒)少于一次磁盘寻道(大约 10 毫秒). 我们怀疑这是因为磁盘本身将更新操作缓存到了内存, 并且在数据真正落盘前返回响应. 该方式是否安全取决于断电后磁盘是否有备用电力将数据落盘. </p>
-<h3><span id="du-xing-neng">读性能</span><a href="#du-xing-neng" class="header-anchor">#</a></h3><p>我们分别给出正向顺序读、反向顺序读的性能以及随机查询的性能指标. 注意, 基准测试创建的数据库很小. 因此该性能报告描述的是 leveldb 的全部数据集能放入到内存的场景. 如果数据不在操作系统缓存中, 读取一点数据的性能消耗主要在于一到两次的磁盘寻道. 写性能基本不会受数据集是否能放入内存的影响. </p>
+<h3><span id="读性能">读性能</span></h3><p>我们分别给出正向顺序读、反向顺序读的性能以及随机查询的性能指标. 注意, 基准测试创建的数据库很小. 因此该性能报告描述的是 leveldb 的全部数据集能放入到内存的场景. 如果数据不在操作系统缓存中, 读取一点数据的性能消耗主要在于一到两次的磁盘寻道. 写性能基本不会受数据集是否能放入内存的影响. </p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">readrandom  : 16.677 micros/op;  (approximately 60,000 reads per second)</span><br><span class="line">readseq     :  0.476 micros/op;  232.3 MB/s</span><br><span class="line">readreverse :  0.724 micros/op;  152.9 MB/s</span><br></pre></td></tr></table></figure>
 <p>LevelDB 会在后台压实底层的数据来改善读性能. 上面列出的结果是在经过一系列随机写操作后得出的. 如果经过压实(通常是自动触发), 那么上述指标会更好. </p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">readrandom  : 11.602 micros/op;  (approximately 85,000 reads per second)</span><br><span class="line">readseq     :  0.423 micros/op;  261.8 MB/s</span><br><span class="line">readreverse :  0.663 micros/op;  166.9 MB/s</span><br></pre></td></tr></table></figure>
 
-<p>读操作消耗高的地方有一些来自重复解压从磁盘读取的数据块. 如果我们能提供足够的缓存给 leveldb 来将<br>解压后的数据保存在内存中, 读性能会进一步改善：</p>
+<p>读操作消耗高的地方有一些来自重复解压从磁盘读取的数据块. 如果我们能提供足够的缓存给 leveldb 来将<br>解压后的数据保存在内存中, 读性能会进一步改善: </p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">readrandom  : 9.775 micros/op;  (approximately 100,000 reads per second before compaction)</span><br><span class="line">readrandom  : 5.215 micros/op;  (approximately 190,000 reads per second after compaction) </span><br></pre></td></tr></table></figure>
 
-<h1><span id="shi-yong-ju-li">使用举例</span><a href="#shi-yong-ju-li" class="header-anchor">#</a></h1><p>下面从构建和头文件介绍开始, 对 leveldb 的基本使用进行介绍.</p>
-<h2><span id="gou-jian">构建</span><a href="#gou-jian" class="header-anchor">#</a></h2><p>该工程开箱支持 CMake. </p>
-<p>所以构建起来超简单：</p>
+<h1><span id="使用举例">使用举例</span></h1><p>下面从构建和头文件介绍开始, 对 leveldb 的基本使用进行介绍.</p>
+<h2><span id="构建">构建</span></h2><p>该工程开箱支持 CMake. </p>
+<p>所以构建起来超简单: </p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">mkdir -p build &amp;&amp; <span class="built_in">cd</span> build</span><br><span class="line">cmake -DCMAKE_BUILD_TYPE=Release .. &amp;&amp; cmake --build</span><br></pre></td></tr></table></figure>
 
 <p>更多高级用法请请参照 CMake 文档和本项目的 CMakeLists.txt. </p>
-<h2><span id="tou-wen-jian-jie-shao">头文件介绍</span><a href="#tou-wen-jian-jie-shao" class="header-anchor">#</a></h2><p>LevelDB 对外的接口都包含在 include/*.h 中. 除了该目录下的文件, 用户不应该依赖其它目录下任何文件. </p>
+<h2><span id="头文件介绍">头文件介绍</span></h2><p>LevelDB 对外的接口都包含在 include/*.h 中. 除了该目录下的文件, 用户不应该依赖其它目录下任何文件. </p>
 <ul>
 <li><p><strong>include/db.h</strong>: 主要的接口在这, 使用 leveldb 从这里开始. </p>
 </li>
@@ -231,39 +331,35 @@ Key 的">
 <li><p><strong>include/table.h, include/table_builder.h</strong>: 底层的模块, 大多数客户端可能不会直接用到. </p>
 </li>
 </ul>
-<h2><span id="da-kai-huo-xin-jian-yi-ge-shu-ju-ku">打开(或新建)一个数据库</span><a href="#da-kai-huo-xin-jian-yi-ge-shu-ju-ku" class="header-anchor">#</a></h2><p>leveldb 数据库都有一个名字, 该名字对应了文件系统上一个目录, 而且该数据库内容全都存在该目录下. 下面的例子显示了如何打开一个数据库以及在必要情况下创建之. </p>
+<h2><span id="打开或新建一个数据库">打开(或新建)一个数据库</span></h2><p>leveldb 数据库都有一个名字, 该名字对应了文件系统上一个目录, 而且该数据库内容全都存在该目录下. 下面的例子显示了如何打开一个数据库以及在必要情况下创建之. </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;cassert&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;leveldb/db.h&quot;</span></span></span><br><span class="line"></span><br><span class="line">leveldb::DB* db;</span><br><span class="line">leveldb::Options options;</span><br><span class="line">options.create_if_missing = <span class="literal">true</span>;</span><br><span class="line">leveldb::Status status = leveldb::DB::Open(options, <span class="string">&quot;/tmp/testdb&quot;</span>, &amp;db);</span><br><span class="line">assert(status.ok());</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
 
-<p>如果你想在数据库已存在的时候触发一个异常, 将下面这行加到 <code>leveldb::DB::Open</code> 调用之前：</p>
+<p>如果你想在数据库已存在的时候触发一个异常, 将下面这行加到 <code>leveldb::DB::Open</code> 调用之前: </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">options.error_if_exists = <span class="literal">true</span>;</span><br></pre></td></tr></table></figure>
 
-<h2><span id="status-lei-xing">Status 类型</span><a href="#status-lei-xing" class="header-anchor">#</a></h2><p>You may have noticed the <code>leveldb::Status</code> type above. Values of this type are<br>returned by most functions in leveldb that may encounter an error. You can check<br>if such a result is ok, and also print an associated error message:</p>
-<p>你可能注意到上面的 <code>leveldb::Status</code> 类型了. leveldb 中大部分方法在遇到错误的时候会返回该类型的值. 你可以检查它是否为 ok, 然后打印关联的错误信息即可：</p>
+<h2><span id="status-类型">Status 类型</span></h2><p>你可能注意到上面的 <code>leveldb::Status</code> 类型了. leveldb 中大部分方法在遇到错误的时候会返回该类型的值. 你可以检查它是否为 ok, 然后打印关联的错误信息即可: </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">leveldb::Status s = ...;</span><br><span class="line"><span class="keyword">if</span> (!s.ok()) <span class="built_in">cerr</span> &lt;&lt; s.ToString() &lt;&lt; <span class="built_in">endl</span>;</span><br></pre></td></tr></table></figure>
 
-<h2><span id="guan-bi-shu-ju-ku">关闭数据库</span><a href="#guan-bi-shu-ju-ku" class="header-anchor">#</a></h2><p>当数据库不再使用的时候, 像下面这样直接删除数据库对象就可以了：</p>
+<h2><span id="关闭数据库">关闭数据库</span></h2><p>当数据库不再使用的时候, 像下面这样直接删除数据库对象就可以了: </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">... open the db as described above ...</span><br><span class="line">... <span class="keyword">do</span> something with db ...</span><br><span class="line"><span class="keyword">delete</span> db;</span><br></pre></td></tr></table></figure>
 
 <p>非常简单是不是? 因为 <code>DB</code> 类的实现是基于 RAII 的, 在 delete 时触发析构方法自动进行清理工作.</p>
-<h2><span id="shu-ju-ku-du-xie">数据库读写</span><a href="#shu-ju-ku-du-xie" class="header-anchor">#</a></h2><p>数据库提供了 <code>Put</code>、<code>Delete</code> 以及 <code>Get</code> 方法来修改、查询数据库. 下面的代码展示了将 key1 对应的 value 移动(先拷贝后删除)到 key2 下. </p>
+<h2><span id="数据库读写">数据库读写</span></h2><p>数据库提供了 <code>Put</code>、<code>Delete</code> 以及 <code>Get</code> 方法来修改、查询数据库. 下面的代码展示了将 key1 对应的 value 移动(先拷贝后删除)到 key2 下. </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">std</span>::<span class="built_in">string</span> value;</span><br><span class="line">leveldb::Status s = db-&gt;Get(leveldb::ReadOptions(), key1, &amp;value);</span><br><span class="line"><span class="keyword">if</span> (s.ok()) s = db-&gt;Put(leveldb::WriteOptions(), key2, value);</span><br><span class="line"><span class="keyword">if</span> (s.ok()) s = db-&gt;Delete(leveldb::WriteOptions(), key1);</span><br></pre></td></tr></table></figure>
 
-<h2><span id="yuan-zi-geng-xin">原子更新</span><a href="#yuan-zi-geng-xin" class="header-anchor">#</a></h2><p>注意, 上一小节中如果进程在 Put 了 key2 之后但是删除 key1 之前挂了, 那么同样的 value 就出现在了多个 keys 之下. 该问题可以通过使用 <code>WriteBatch</code> 类原子地应用一组操作来避免. </p>
+<h2><span id="原子更新">原子更新</span></h2><p>注意, 上一小节中如果进程在 Put 了 key2 之后但是删除 key1 之前挂了, 那么同样的 value 就出现在了多个 keys 之下. 该问题可以通过使用 <code>WriteBatch</code> 类原子地应用一组操作来避免. </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;leveldb/write_batch.h&quot;</span></span></span><br><span class="line">...</span><br><span class="line"><span class="built_in">std</span>::<span class="built_in">string</span> value;</span><br><span class="line">leveldb::Status s = db-&gt;Get(leveldb::ReadOptions(), key1, &amp;value);</span><br><span class="line"><span class="keyword">if</span> (s.ok()) &#123;</span><br><span class="line">  leveldb::WriteBatch batch;</span><br><span class="line">  batch.Delete(key1);</span><br><span class="line">  batch.Put(key2, value);</span><br><span class="line">  s = db-&gt;Write(leveldb::WriteOptions(), &amp;batch);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p><code>WriteBatch</code> 保存着一系列将被应用到数据库的编辑操作, 这些操作会按照添加的顺序依次被执行. 注意, 我们先执行 Delete 后执行 Put, 这样如果 key1 和 key2 一样的情况下我们也不会错误地丢失数据. </p>
 <p>除了原子性, <code>WriteBatch</code> 也能加速更新过程, 因为可以把一大批独立的操作添加到同一个 batch 中然后一次性执行. </p>
-<h2><span id="tong-bu-xie-cao-zuo">同步写操作</span><a href="#tong-bu-xie-cao-zuo" class="header-anchor">#</a></h2><p>默认地, leveldb 每个写操作都是异步的：进程把要写的内容 push 给操作系统后立马返回. 从操作系统内存到底层持久性存储的迁移异步地发生. 当然, 也可以把某个写操作的 sync 标识打开, 以等到数据真正被记录到持久化存储再让写操作返回. (在 Posix 系统上, 这是通过在写操作返回前调用 <code>fsync(...)</code> 或 <code>fdatasync(...)</code> 或 <code>msync(..., MS_SYNC)</code> 来实现的. )</p>
+<h2><span id="同步写操作">同步写操作</span></h2><p>默认地, leveldb 每个写操作都是异步的: 进程把要写的内容 push 给操作系统后立马返回. 从操作系统内存到底层持久性存储的迁移异步地发生. 当然, 也可以把某个写操作的 sync 标识打开, 以等到数据真正被记录到持久化存储再让写操作返回. (在 Posix 系统上, 这是通过在写操作返回前调用 <code>fsync(...)</code> 或 <code>fdatasync(...)</code> 或 <code>msync(..., MS_SYNC)</code> 来实现的. )</p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">leveldb::WriteOptions write_options;</span><br><span class="line">write_options.sync = <span class="literal">true</span>;</span><br><span class="line">db-&gt;Put(write_options, ...);</span><br></pre></td></tr></table></figure>
 
 <p>异步写通常比同步写快 1000 倍. 异步写的缺点是, 一旦机器崩溃可能会导致最后几个更新操作丢失. 注意, 仅仅是写进程崩溃(而非机器重启)则不会引起任何更新操作丢失, 因为哪怕 sync 标识为 false, 在进程退出之前写操作也已经从进程内存 push 到了操作系统. </p>
-<p>Asynchronous writes can often be used safely. For example, when loading a large<br>amount of data into the database you can handle lost updates by restarting the<br>bulk load after a crash. A hybrid scheme is also possible where every Nth write<br>is synchronous, and in the event of a crash, the bulk load is restarted just<br>after the last synchronous write finished by the previous run. (The synchronous<br>write can update a marker that describes where to restart on a crash.)</p>
 <p>异步写总是可以安全使用. 比如你要将大量的数据写入数据库, 如果丢失了最后几个更新操作, 你可以重启整个写过程. 如果数据量非常大, 一个优化点是, 每进行 N 个异步写操作则进行一次同步地写操作, 如果期间发生了崩溃, 重启自从上一个成功的同步写操作以来的更新操作即可. (同步的写操作可以同时更新一个标识, 该标识用于描述崩溃重启后从何处开始重启更新操作. )</p>
-<p><code>WriteBatch</code> provides an alternative to asynchronous writes. Multiple updates<br>may be placed in the same WriteBatch and applied together using a synchronous<br>write (i.e., <code>write_options.sync</code> is set to true). The extra cost of the<br>synchronous write will be amortized across all of the writes in the batch.</p>
 <p><code>WriteBatch</code> 可以作为异步写操作的替代品. 多个更新操作可以放到同一个 WriteBatch 中然后通过一次同步写(即 <code>write_options.sync</code> 置为 true)一起应用. </p>
-<h2><span id="bing-fa">并发</span><a href="#bing-fa" class="header-anchor">#</a></h2><p>A database may only be opened by one process at a time. The leveldb<br>implementation acquires a lock from the operating system to prevent misuse.<br>Within a single process, the same <code>leveldb::DB</code> object may be safely shared by<br>multiple concurrent threads. I.e., different threads may write into or fetch<br>iterators or call Get on the same database without any external synchronization<br>(the leveldb implementation will automatically do the required synchronization).<br>However other objects (like Iterator and <code>WriteBatch</code>) may require external<br>synchronization. If two threads share such an object, they must protect access<br>to it using their own locking protocol. More details are available in the public<br>header files.</p>
-<p>一个数据库同时只能被一个进程打开. LevelDB 会从操作系统获取一把锁来防止多进程同时打开同一个数据库. 在单个进程中, 同一个 <code>leveldb::DB</code> 对象可以被多个并发的线程安全地使用, 也就是说, 不同的线程可以写入或者获取迭代器, 或者针对同一个数据库调用 <code>Get</code>, 前述全部操作均不需要借助外部同步设施(leveldb 实现会自动地确保必要的同步). 但是其它对象, 比如 <code>Iterator</code> 或者 <code>WriteBatch</code> 需要外部自己提供同步保证. 如果两个线程共享此类对象, 需要使用锁进行互斥访问. 具体见对应的头文件. </p>
-<h2><span id="die-dai-shu-ju-ku">迭代数据库</span><a href="#die-dai-shu-ju-ku" class="header-anchor">#</a></h2><p>下面的用例展示了如何打印数据库中全部的 (key, value) 对. </p>
+<h2><span id="并发">并发</span></h2><p>一个数据库同时只能被一个进程打开. LevelDB 会从操作系统获取一把锁来防止多进程同时打开同一个数据库. 在单个进程中, 同一个 <code>leveldb::DB</code> 对象可以被多个并发的线程安全地使用, 也就是说, 不同的线程可以写入或者获取迭代器, 或者针对同一个数据库调用 <code>Get</code>, 前述全部操作均不需要借助外部同步设施(leveldb 实现会自动地确保必要的同步). 但是其它对象, 比如 <code>Iterator</code> 或者 <code>WriteBatch</code> 需要外部自己提供同步保证. 如果两个线程共享此类对象, 需要使用锁进行互斥访问. 具体见对应的头文件. </p>
+<h2><span id="迭代数据库">迭代数据库</span></h2><p>下面的用例展示了如何打印数据库中全部的 (key, value) 对. </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">leveldb::Iterator* it = db-&gt;NewIterator(leveldb::ReadOptions());</span><br><span class="line"><span class="keyword">for</span> (it-&gt;SeekToFirst(); it-&gt;Valid(); it-&gt;Next()) &#123;</span><br><span class="line">  <span class="built_in">cout</span> &lt;&lt; it-&gt;key().ToString() &lt;&lt; <span class="string">&quot;: &quot;</span>  &lt;&lt; it-&gt;value().ToString() &lt;&lt; <span class="built_in">endl</span>;</span><br><span class="line">&#125;</span><br><span class="line">assert(it-&gt;status().ok());  <span class="comment">// Check for any errors found during the scan</span></span><br><span class="line"><span class="keyword">delete</span> it;</span><br></pre></td></tr></table></figure>
 
 <p>下面的用例展示了如何打印 <code>[start, limit)</code> 范围内数据:</p>
@@ -272,158 +368,369 @@ Key 的">
 <p>当然你也可以反向遍历(注意, 反向遍历可能比正向遍历要慢一些, 具体见前面的读性能基准测试). </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (it-&gt;SeekToLast(); it-&gt;Valid(); it-&gt;Prev()) &#123;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h2><span id="kuai-zhao">快照</span><a href="#kuai-zhao" class="header-anchor">#</a></h2><p>快照提供了针对整个 KV 存储的一致性只读视图. <code>ReadOptions::snapshot</code> 不为空表示读操作应该作用在 DB 的某个特定版本上; 若为空, 则读操作将会作用在当前版本的一个隐式的快照上.  </p>
-<p>快照通过调用 <code>DB::GetSnapshot()</code> 方法创建： </p>
+<h2><span id="快照">快照</span></h2><p>快照提供了针对整个 KV 存储的一致性只读视图. <code>ReadOptions::snapshot</code> 不为空表示读操作应该作用在 DB 的某个特定版本上; 若为空, 则读操作将会作用在当前版本的一个隐式的快照上.  </p>
+<p>快照通过调用 <code>DB::GetSnapshot()</code> 方法创建:  </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">leveldb::ReadOptions options;</span><br><span class="line">options.snapshot = db-&gt;GetSnapshot();</span><br><span class="line">... apply some updates to db ...</span><br><span class="line"><span class="comment">// 获取与前面快照对应的数据库迭代器</span></span><br><span class="line">leveldb::Iterator* iter = db-&gt;NewIterator(options);</span><br><span class="line">... read <span class="keyword">using</span> iter to view the state when the snapshot was created ...</span><br><span class="line"><span class="keyword">delete</span> iter;</span><br><span class="line">db-&gt;ReleaseSnapshot(options.snapshot);</span><br></pre></td></tr></table></figure>
 
 <p>注意, 当一个快照不再使用的时候, 应该通过 <code>DB::ReleaseSnapshot</code> 接口进行释放. </p>
-<h2><span id="slice-qie-pian">Slice 切片</span><a href="#slice-qie-pian" class="header-anchor">#</a></h2><p><code>it-&gt;key()</code> 和 <code>it-&gt;value()</code> 调用返回的值是 <code>leveldb::Slice</code> 类型的实例. 熟悉 Golang 或者 Rust 的同学对 slice 应该不陌生. slice 是一个简单的数据结构, 包含一个长度和一个指向外部字节数组的指针. 返回一个切片比返回 <code>std::string</code> 更加高效, 因为不需要隐式地拷贝大量的 keys 和 values. 另外, leveldb 方法不返回空字符结尾的 C 风格地字符串, 因为 leveldb 的 keys 和 values 允许包含 <code>\0</code> 字节. </p>
-<p>C++ 风格的 string 和 C 风格的空字符结尾的字符串很容易转换为一个切片：</p>
+<h2><span id="slice-切片">Slice 切片</span></h2><p><code>it-&gt;key()</code> 和 <code>it-&gt;value()</code> 调用返回的值是 <code>leveldb::Slice</code> 类型的实例. 熟悉 Golang 或者 Rust 的同学对 slice 应该不陌生. slice 是一个简单的数据结构, 包含一个长度和一个指向外部字节数组的指针. 返回一个切片比返回 <code>std::string</code> 更加高效, 因为不需要隐式地拷贝大量的 keys 和 values. 另外, leveldb 方法不返回空字符结尾的 C 风格地字符串, 因为 leveldb 的 keys 和 values 允许包含 <code>\0</code> 字节. </p>
+<p>C++ 风格的 string 和 C 风格的空字符结尾的字符串很容易转换为一个切片: </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">leveldb::Slice s1 = <span class="string">&quot;hello&quot;</span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="built_in">std</span>::<span class="built_in">string</span> <span class="title">str</span><span class="params">(<span class="string">&quot;world&quot;</span>)</span></span>;</span><br><span class="line">leveldb::Slice s2 = str;</span><br></pre></td></tr></table></figure>
 
-<p>一个切片也很容易转换回 C++ 风格的字符串：</p>
+<p>一个切片也很容易转换回 C++ 风格的字符串: </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">std</span>::<span class="built_in">string</span> str = s1.ToString();</span><br><span class="line">assert(str == <span class="built_in">std</span>::<span class="built_in">string</span>(<span class="string">&quot;hello&quot;</span>));</span><br></pre></td></tr></table></figure>
 
-<p>注意, 当使用切片时, 调用者要确保它内部指针指向的外部字节数组保持存活. 比如, 下面的代码就有问题：</p>
+<p>注意, 当使用切片时, 调用者要确保它内部指针指向的外部字节数组保持存活. 比如, 下面的代码就有问题: </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">leveldb::Slice slice;</span><br><span class="line"><span class="keyword">if</span> (...) &#123;</span><br><span class="line">  <span class="built_in">std</span>::<span class="built_in">string</span> str = ...;</span><br><span class="line">  slice = str;</span><br><span class="line">&#125;</span><br><span class="line">Use(slice);</span><br></pre></td></tr></table></figure>
 
 <p>当 if 语句结束的时候, str 将会被销毁, 切片的底层存储也随之消失了, 后面再用就出问题了. </p>
-<h2><span id="bi-jiao-qi">比较器</span><a href="#bi-jiao-qi" class="header-anchor">#</a></h2><p>前面的例子中用的都是默认的比较函数, 即逐字节按照字典序比较. 你可以定制自己的比较函数, 然后在打开数据库的时候传入. 只需继承 <code>leveldb::Comparator</code> 然后定义相关逻辑即可, 下面是一个例子：</p>
+<h2><span id="比较器">比较器</span></h2><p>前面的例子中用的都是默认的比较函数, 即逐字节按照字典序比较. 你可以定制自己的比较函数, 然后在打开数据库的时候传入. 只需继承 <code>leveldb::Comparator</code> 然后定义相关逻辑即可, 下面是一个例子: </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">TwoPartComparator</span> :</span> <span class="keyword">public</span> leveldb::Comparator &#123;</span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  <span class="comment">// Three-way comparison function:</span></span><br><span class="line">  <span class="comment">//   if a &lt; b: negative result</span></span><br><span class="line">  <span class="comment">//   if a &gt; b: positive result</span></span><br><span class="line">  <span class="comment">//   else: zero result</span></span><br><span class="line">  <span class="function"><span class="keyword">int</span> <span class="title">Compare</span><span class="params">(<span class="keyword">const</span> leveldb::Slice&amp; a, <span class="keyword">const</span> leveldb::Slice&amp; b)</span> <span class="keyword">const</span> </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> a1, a2, b1, b2;</span><br><span class="line">    ParseKey(a, &amp;a1, &amp;a2);</span><br><span class="line">    ParseKey(b, &amp;b1, &amp;b2);</span><br><span class="line">    <span class="keyword">if</span> (a1 &lt; b1) <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    <span class="keyword">if</span> (a1 &gt; b1) <span class="keyword">return</span> +<span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> (a2 &lt; b2) <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    <span class="keyword">if</span> (a2 &gt; b2) <span class="keyword">return</span> +<span class="number">1</span>;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Ignore the following methods for now:</span></span><br><span class="line">  <span class="function"><span class="keyword">const</span> <span class="keyword">char</span>* <span class="title">Name</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> <span class="string">&quot;TwoPartComparator&quot;</span>; &#125;</span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">FindShortestSeparator</span><span class="params">(<span class="built_in">std</span>::<span class="built_in">string</span>*, <span class="keyword">const</span> leveldb::Slice&amp;)</span> <span class="keyword">const</span> </span>&#123;&#125;</span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">FindShortSuccessor</span><span class="params">(<span class="built_in">std</span>::<span class="built_in">string</span>*)</span> <span class="keyword">const</span> </span>&#123;&#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 
-<p>然后使用上面定义的比较器打开数据库：</p>
+<p>然后使用上面定义的比较器打开数据库: </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 实例化比较器</span></span><br><span class="line">TwoPartComparator cmp;</span><br><span class="line">leveldb::DB* db;</span><br><span class="line">leveldb::Options options;</span><br><span class="line">options.create_if_missing = <span class="literal">true</span>;</span><br><span class="line"><span class="comment">// 将比较器赋值给 options.comparator</span></span><br><span class="line">options.comparator = &amp;cmp;</span><br><span class="line"><span class="comment">// 打开数据库</span></span><br><span class="line">leveldb::Status status = leveldb::DB::Open(options, <span class="string">&quot;/tmp/testdb&quot;</span>, &amp;db);</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
 
-<h3><span id="hou-xiang-jian-rong-xing">后向兼容性</span><a href="#hou-xiang-jian-rong-xing" class="header-anchor">#</a></h3><p>比较器 <code>Name</code> 方法返回的结果在创建数据库时会被绑定到数据库上, 后续每次打开都会进行检查. 如果名称改了, 对 <code>leveldb::DB::Open</code> 的调用就会失败. 因此, 当且仅当在新的 key 格式和比较函数与已有的数据库不兼容而且已有数据不再被需要的时候再修改比较器名称. 总而言之, 一个数据库只能对应一个比较器, 而且比较器由名字唯一确定, 一旦修改名称或者比较器逻辑, 数据库的操作逻辑就统统会出错, 毕竟 leveldb 是一个有序的 KV 存储.</p>
-<p>You can however still gradually evolve your key format over time with a little<br>bit of pre-planning. For example, you could store a version number at the end of<br>each key (one byte should suffice for most uses). When you wish to switch to a<br>new key format (e.g., adding an optional third part to the keys processed by<br><code>TwoPartComparator</code>), (a) keep the same comparator name (b) increment the<br>version number for new keys (c) change the comparator function so it uses the<br>version numbers found in the keys to decide how to interpret them.</p>
+<h3><span id="后向兼容性">后向兼容性</span></h3><p>比较器 <code>Name</code> 方法返回的结果在创建数据库时会被绑定到数据库上, 后续每次打开都会进行检查. 如果名称改了, 对 <code>leveldb::DB::Open</code> 的调用就会失败. 因此, 当且仅当在新的 key 格式和比较函数与已有的数据库不兼容而且已有数据不再被需要的时候再修改比较器名称. 总而言之, 一个数据库只能对应一个比较器, 而且比较器由名字唯一确定, 一旦修改名称或者比较器逻辑, 数据库的操作逻辑就统统会出错, 毕竟 leveldb 是一个有序的 KV 存储.</p>
 <p>如果非要修改比较逻辑怎么办呢? 你可以根据预先规划一点一点的演进你的 key 格式, 注意, 事先的演进规划非常重要. 比如, 你可以存储一个版本号在每个 key 的结尾(大多数场景, 一个字节足够了). 当你想要切换到新的 key 格式的时候(比如新增 third-part 到上面例子 <code>TwoPartComparator</code> 处理的 keys 中), 那么你需要做的是:</p>
 <ul>
 <li>(a) 保持比较器名称不变</li>
 <li>(b) 递增新 keys 的版本号</li>
 <li>(c) 修改比较器函数以让其使用版本号来决定如何进行排序. </li>
 </ul>
-<h2><span id="xing-neng-diao-you">性能调优</span><a href="#xing-neng-diao-you" class="header-anchor">#</a></h2><p>通过修改 <code>include/leveldb/options.h</code> 中定义的类型的默认值来对 leveldb 的性能进行调优. </p>
-<h3><span id="block-da-xiao">Block 大小</span><a href="#block-da-xiao" class="header-anchor">#</a></h3><p>Leveldb 把相邻的 keys 组织在同一个 block 中(具体见后面文章针对 sorted table 文件格式的描述), 而且 block 是 leveldb 把数据从内存到转移到持久化存储和从持久化存储转移到内存的基本单位. 默认的, 压缩前 block 大约为 4KB. 经常处理大块数据的应用可能希望把这个值调大, 而针对数据做”点读” 的应用可能希望这个值小一点, 这样性能可能会更高一些. 但是, 没有证据表明该值小于 1KB 或者大于几个 MB 的时候性能会表现更好. 同时要注意, 针对大的 block size, 压缩效率会更高一些. </p>
-<h3><span id="ya-suo">压缩</span><a href="#ya-suo" class="header-anchor">#</a></h3><p>每个 block 在写入持久存储之前都会被单独压缩. 压缩默认是开启的, 因为默认的压缩算法非常快, 而且对于不可压缩的数据会自动关闭压缩功能. 极少有场景会让用户想要完全关闭压缩功能, 除非基准测试显示关闭压缩会显著改善性能. 按照下面方式做就关闭了压缩功能：</p>
+<h2><span id="性能调优">性能调优</span></h2><p>通过修改 <code>include/leveldb/options.h</code> 中定义的类型的默认值来对 leveldb 的性能进行调优. </p>
+<h3><span id="block-大小">Block 大小</span></h3><p>Leveldb 把相邻的 keys 组织在同一个 block 中(具体见后面文章针对 sorted table 文件格式的描述), 而且 block 是 leveldb 把数据从内存到转移到持久化存储和从持久化存储转移到内存的基本单位. 默认的, 压缩前 block 大约为 4KB. 经常处理大块数据的应用可能希望把这个值调大, 而针对数据做”点读” 的应用可能希望这个值小一点, 这样性能可能会更高一些. 但是, 没有证据表明该值小于 1KB 或者大于几个 MB 的时候性能会表现更好. 同时要注意, 针对大的 block size, 压缩效率会更高一些. </p>
+<h3><span id="压缩">压缩</span></h3><p>每个 block 在写入持久存储之前都会被单独压缩. 压缩默认是开启的, 因为默认的压缩算法非常快, 而且对于不可压缩的数据会自动关闭压缩功能. 极少有场景会让用户想要完全关闭压缩功能, 除非基准测试显示关闭压缩会显著改善性能. 按照下面方式做就关闭了压缩功能: </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">leveldb::Options options;</span><br><span class="line">options.compression = leveldb::kNoCompression;</span><br><span class="line">... leveldb::DB::Open(options, name, ...) ....</span><br></pre></td></tr></table></figure>
 
-<h3><span id="huan-cun">缓存</span><a href="#huan-cun" class="header-anchor">#</a></h3><p>数据库的内容存储在文件系统的一组文件里, 每个文件保存着一系列压缩后的 blocks. 如果 <code>options.block_cache</code> 不为空, 它就会被用于缓存频繁被使用的 block 内容(已解压缩). </p>
+<h3><span id="缓存">缓存</span></h3><p>数据库的内容存储在文件系统的一组文件里, 每个文件保存着一系列压缩后的 blocks. 如果 <code>options.block_cache</code> 不为空, 它就会被用于缓存频繁被使用的 block 内容(已解压缩). </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;leveldb/cache.h&quot;</span></span></span><br><span class="line"></span><br><span class="line">leveldb::Options options;</span><br><span class="line"><span class="comment">// 打开数据库之前分配一个 100MB 的 LRU Cache 用于缓存解压的 blocks</span></span><br><span class="line">options.block_cache = leveldb::NewLRUCache(<span class="number">100</span> * <span class="number">1048576</span>);  <span class="comment">// 100MB cache</span></span><br><span class="line">leveldb::DB* db;</span><br><span class="line"><span class="comment">// 打开数据库</span></span><br><span class="line">leveldb::DB::Open(options, name, &amp;db);</span><br><span class="line">... use the db ...</span><br><span class="line"><span class="keyword">delete</span> db</span><br><span class="line"><span class="keyword">delete</span> options.block_cache;</span><br></pre></td></tr></table></figure>
 
 <p>注意 cache 保存的是未压缩的数据, 因此应该根据应用程序所需的数据大小来设置它的大小. (已压缩数据的缓存工作交给操作系统的 buffer cache 或者用户提供的定制的 Env 实现去干. )</p>
-<p>当执行一个大块数据读操作时, 应用程序可能想要取消缓存功能, 这样读进来的大块数据就不会导致 cache 中当前大部分数据被置换出去, 我们可以为它提供一个单独的 iterator 来达到该目的：</p>
+<p>当执行一个大块数据读操作时, 应用程序可能想要取消缓存功能, 这样读进来的大块数据就不会导致 cache 中当前大部分数据被置换出去, 我们可以为它提供一个单独的 iterator 来达到该目的: </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">leveldb::ReadOptions options;</span><br><span class="line"><span class="comment">// 缓存设置为关闭</span></span><br><span class="line">options.fill_cache = <span class="literal">false</span>;</span><br><span class="line"><span class="comment">// 用该设置去创建一个新的迭代器</span></span><br><span class="line">leveldb::Iterator* it = db-&gt;NewIterator(options);</span><br><span class="line"><span class="comment">// 用该迭代器去处理大块数据</span></span><br><span class="line"><span class="keyword">for</span> (it-&gt;SeekToFirst(); it-&gt;Valid(); it-&gt;Next()) &#123;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<h3><span id="key-de-bu-ju-she-ji">Key 的布局设计</span><a href="#key-de-bu-ju-she-ji" class="header-anchor">#</a></h3><p>注意, 磁盘传输的单位以及磁盘缓存的单位都是一个 block. 相邻的 keys(已排序)总是在同一个 block 中. 因此应用程序可以通过把需要一起访问的 keys 放在一起, 同时把不经常使用的 keys 放到一个独立的键空间区域来提升性能. </p>
-<p>举个例子, 假设我们正基于 leveldb 实现一个简单的文件系统. 我们打算存储到这个文件系统的数据项类型如下：</p>
+<h3><span id="key-的布局设计">Key 的布局设计</span></h3><p>注意, 磁盘传输的单位以及磁盘缓存的单位都是一个 block. 相邻的 keys(已排序)总是在同一个 block 中. 因此应用程序可以通过把需要一起访问的 keys 放在一起, 同时把不经常使用的 keys 放到一个独立的键空间区域来提升性能. </p>
+<p>举个例子, 假设我们正基于 leveldb 实现一个简单的文件系统. 我们打算存储到这个文件系统的数据项类型如下: </p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">filename -&gt; permission-bits, length, list of file_block_ids</span><br><span class="line">file_block_id -&gt; data</span><br></pre></td></tr></table></figure>
 
 <p>我们可以给上面表示 <code>filename</code> 的 key 增加一个字符前缀, 比如 ‘/‘, 然后给表示 <code>file_block_id</code> 的 key 增加另一个不同的前缀, 比如 ‘0’, 这样这些不同用途的 key 就具有了各自独立的键空间区域, 扫描元数据的时候我们就不用读取和缓存大块文件内容数据了. </p>
-<h3><span id="guo-lu-qi">过滤器</span><a href="#guo-lu-qi" class="header-anchor">#</a></h3><p>鉴于 leveldb 数据在磁盘上的组织形式, 一次 <code>Get()</code> 调用可能涉及多次磁盘读操作. 可配置的 FilterPolicy 机制可以用来大幅减少磁盘读次数. </p>
+<h3><span id="过滤器">过滤器</span></h3><p>鉴于 leveldb 数据在磁盘上的组织形式, 一次 <code>Get()</code> 调用可能涉及多次磁盘读操作. 可配置的 FilterPolicy 机制可以用来大幅减少磁盘读次数. </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">leveldb::Options options;</span><br><span class="line"><span class="comment">// 设置启用基于布隆过滤器的过滤策略</span></span><br><span class="line">options.filter_policy = NewBloomFilterPolicy(<span class="number">10</span>);</span><br><span class="line">leveldb::DB* db;</span><br><span class="line"><span class="comment">// 用该设置打开数据库</span></span><br><span class="line">leveldb::DB::Open(options, <span class="string">&quot;/tmp/testdb&quot;</span>, &amp;db);</span><br><span class="line">... use the database ...</span><br><span class="line"><span class="keyword">delete</span> db;</span><br><span class="line"><span class="keyword">delete</span> options.filter_policy;</span><br></pre></td></tr></table></figure>
 
 <p>上述代码将一个基于布隆过滤器的过滤策略与数据库进行了关联. 基于布隆过滤器的过滤方式依赖于如下事实, 在内存中保存每个 key 的部分位(在上面例子中是 10 位, 因为我们传给 <code>NewBloomFilterPolicy</code> 的参数是 10). 这个过滤器将会使得 <code>Get()</code> 调用中非必须的磁盘读操作大约减少 100 倍. 每个 key 用于过滤器的位数增加将会进一步减少读磁盘次数, 当然也会占用更多内存空间. 我们推荐数据集无法全部放入内存同时又存在大量随机读的应用设置一个过滤器策略. </p>
-<p>如果你在使用定制的比较器, 你应该确保你在用的过滤器策略与你的比较器兼容. 举个例子, 如果一个比较器在比较 key 的时候忽略结尾的空格, 那么<code>NewBloomFilterPolicy</code> 一定不能与此比较器共存. 相反, 应用应该提供一个定制的过滤器策略, 而且它也应该忽略键的尾部空格. 示例如下：</p>
+<p>如果你在使用定制的比较器, 你应该确保你在用的过滤器策略与你的比较器兼容. 举个例子, 如果一个比较器在比较 key 的时候忽略结尾的空格, 那么<code>NewBloomFilterPolicy</code> 一定不能与此比较器共存. 相反, 应用应该提供一个定制的过滤器策略, 而且它也应该忽略键的尾部空格. 示例如下: </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">CustomFilterPolicy</span> :</span> <span class="keyword">public</span> leveldb::FilterPolicy &#123;</span><br><span class="line"> <span class="keyword">private</span>:</span><br><span class="line">  FilterPolicy* builtin_policy_;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  CustomFilterPolicy() : builtin_policy_(NewBloomFilterPolicy(<span class="number">10</span>)) &#123;&#125;</span><br><span class="line">  ~CustomFilterPolicy() &#123; <span class="keyword">delete</span> builtin_policy_; &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">const</span> <span class="keyword">char</span>* <span class="title">Name</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> <span class="string">&quot;IgnoreTrailingSpacesFilter&quot;</span>; &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">CreateFilter</span><span class="params">(<span class="keyword">const</span> Slice* keys, <span class="keyword">int</span> n, <span class="built_in">std</span>::<span class="built_in">string</span>* dst)</span> <span class="keyword">const</span> </span>&#123;</span><br><span class="line">    <span class="comment">// Use builtin bloom filter code after removing trailing spaces</span></span><br><span class="line">    <span class="comment">// 将尾部空格移除后再使用内置的布隆过滤器</span></span><br><span class="line">    <span class="function"><span class="built_in">std</span>::<span class="built_in">vector</span>&lt;Slice&gt; <span class="title">trimmed</span><span class="params">(n)</span></span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; n; i++) &#123;</span><br><span class="line">      trimmed[i] = RemoveTrailingSpaces(keys[i]);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> builtin_policy_-&gt;CreateFilter(&amp;trimmed[i], n, dst);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
 
 <p>当然也可以自己提供非基于布隆过滤器的过滤器策略, 具体见 <code>leveldb/filter_policy.h</code>. </p>
-<h2><span id="xiao-yan-he">校验和</span><a href="#xiao-yan-he" class="header-anchor">#</a></h2><p>Leveldb 将一个校验和与它存储在文件系统中的全部数据进行关联. 根据激进程度有两种方式控制校验和的核对：</p>
+<h2><span id="校验和">校验和</span></h2><p>Leveldb 将一个校验和与它存储在文件系统中的全部数据进行关联. 根据激进程度有两种方式控制校验和的核对: </p>
 <p><code>ReadOptions::verify_checksums</code> 可以设置为 true 来强制核对从文件系统读取的全部数据的进行校验和检查. 默认为 false. </p>
 <p><code>Options::paranoid_checks</code> 在数据库打开之前设置为 true 可以使得数据库一旦检测到数据损毁即报错. 取决于数据库损坏部位, 报错时机可能是打开数据库后的时候, 也可能是在后续执行某个操作的时候. 该配置默认是关闭状态, 这样即使持久性存储部分虽坏数据库也能继续使用. </p>
 <p>如果数据库损坏了(当开启 <code>Options::paranoid_checks</code> 的时候可能就打不开了), <code>leveldb::RepairDB</code> 函数可以用于对尽可能多的数据进行修复. </p>
-<h2><span id="jin-si-kong-jian-da-xiao">近似空间大小</span><a href="#jin-si-kong-jian-da-xiao" class="header-anchor">#</a></h2><p><code>GetApproximateSizes</code> 方法用于获取一个或多个键区间占据的文件系统近似大小(单位, 字节). </p>
+<h2><span id="近似空间大小">近似空间大小</span></h2><p><code>GetApproximateSizes</code> 方法用于获取一个或多个键区间占据的文件系统近似大小(单位, 字节). </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">leveldb::Range ranges[<span class="number">2</span>];</span><br><span class="line">ranges[<span class="number">0</span>] = leveldb::Range(<span class="string">&quot;a&quot;</span>, <span class="string">&quot;c&quot;</span>);</span><br><span class="line">ranges[<span class="number">1</span>] = leveldb::Range(<span class="string">&quot;x&quot;</span>, <span class="string">&quot;z&quot;</span>);</span><br><span class="line"><span class="keyword">uint64_t</span> sizes[<span class="number">2</span>];</span><br><span class="line">leveldb::Status s = db-&gt;GetApproximateSizes(ranges, <span class="number">2</span>, sizes);</span><br></pre></td></tr></table></figure>
 
 <p>上述代码结果是, <code>size[0]</code> 保存 <code>[a..c)</code> 键区间对应的文件系统大致字节数, <code>size[1]</code> 保存 <code>[x..z)</code> 键区间对应的文件系统大致字节数. </p>
-<h2><span id="huan-jing-bian-liang">环境变量</span><a href="#huan-jing-bian-liang" class="header-anchor">#</a></h2><p>由 leveldb 发起的全部文件操作以及其它的操作系统调用最后都会被路由给一个 <code>leveldb::Env</code> 对象. 用户也可以提供自己的 <code>Env</code> 实现以达到更好的控制. 比如, 如果应用程序想要针对 leveldb 的文件 IO 引入一个人工延迟以限制 leveldb 对同一个系统中其它应用的影响:</p>
+<h2><span id="环境变量">环境变量</span></h2><p>由 leveldb 发起的全部文件操作以及其它的操作系统调用最后都会被路由给一个 <code>leveldb::Env</code> 对象. 用户也可以提供自己的 <code>Env</code> 实现以达到更好的控制. 比如, 如果应用程序想要针对 leveldb 的文件 IO 引入一个人工延迟以限制 leveldb 对同一个系统中其它应用的影响:</p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 定制自己的 Env </span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SlowEnv</span> :</span> <span class="keyword">public</span> leveldb::Env &#123;</span><br><span class="line">  ... implementation of the Env interface ...</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">SlowEnv env;</span><br><span class="line">leveldb::Options options;</span><br><span class="line"><span class="comment">// 用定制的 Env 打开数据库</span></span><br><span class="line">options.env = &amp;env;</span><br><span class="line">Status s = leveldb::DB::Open(options, ...);</span><br></pre></td></tr></table></figure>
 
-<h2><span id="yi-zhi-xing">移植性</span><a href="#yi-zhi-xing" class="header-anchor">#</a></h2><p>如果某个特定平台提供 <code>leveldb/port/port.h</code> 导出的类型/方法/函数实现, 那么 leveldb 可以被移植到该平台上, 更多细节见 <code>leveldb/port/port_example.h</code>. </p>
+<h2><span id="移植性">移植性</span></h2><p>如果某个特定平台提供 <code>leveldb/port/port.h</code> 导出的类型/方法/函数实现, 那么 leveldb 可以被移植到该平台上, 更多细节见 <code>leveldb/port/port_example.h</code>. </p>
 <p>另外, 新平台可能还需要一个新的默认的 <code>leveldb::Env</code> 实现. 具体可参考 <code>leveldb/util/env_posix.h</code> 实现. </p>
 <p>–End–</p>
 
-      
-    </div>
-
-  </div>
-
-  <div class="article-footer">
-    <div class="article-meta pull-left">
-
-    
-
-    
-    
-
-    <span class="post-tags">
-      <i class="icon-tags"></i>
-        <a href="/tags/leveldb/">leveldb</a><a href="/tags/LSM-Tree/">LSM-Tree</a><a href="/tags/db/">db</a>
-    </span>
-    
-
     </div>
 
     
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+              <a href="/tags/LSM-Tree/" rel="tag"># LSM-Tree</a>
+              <a href="/tags/db/" rel="tag"># db</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/09/10/hello-world-again/" rel="prev" title="Hello World, Again">
+      <i class="fa fa-chevron-left"></i> Hello World, Again
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/09/11/leveldb-annotations-1-interfaces-and-files/" rel="next" title="leveldb 原理详解系列之一: 接口与文件">
+      leveldb 原理详解系列之一: 接口与文件 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    
+  <div class="comments">
+    <div id="disqus_thread">
+      <noscript>Please enable JavaScript to view the comments powered by Disqus.</noscript>
+    </div>
   </div>
-</article>
+  
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Chienlung Cheung</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">tags</span>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Chienlung Cheung</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
 
   
 
 
 
-	<section id="comment" class="comment">
-	  <div id="disqus_thread">
-	  <noscript>Please enable JavaScript to view the <a target="_blank" rel="noopener" href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-	  </div>
-	</section>
-
-	<script type="text/javascript">
-	var disqus_shortname = 'Chienlung';
-	(function(){
-	  var dsq = document.createElement('script');
-	  dsq.type = 'text/javascript';
-	  dsq.async = true;
-	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
-	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-	}());
-	(function(){
-	  var dsq = document.createElement('script');
-	  dsq.type = 'text/javascript';
-	  dsq.async = true;
-	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
-	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-	}());
-	</script>
 
 
 
 
-    </main>
 
-    <footer class="site-footer">
-  <p class="site-info">
-    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
-    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
-    </br>
-    
-    &copy; 2020 Chienlung Cheung
-    
-  </p>
-</footer>
-    
+
+
+
+
+
 <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'forest',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
 
-    ga('create', 'UA-177829579-1', 'auto');
-    ga('send', 'pageview');
 
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
 </script>
 
     
-  </div>
-</div>
+
+  
+
+<script>
+  function loadCount() {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://Chienlung.disqus.com/count.js';
+    s.id = 'dsq-count-scr';
+    (d.head || d.body).appendChild(s);
+  }
+  // defer loading until the whole page loading is completed
+  window.addEventListener('load', loadCount, false);
+</script>
+<script>
+  var disqus_config = function() {
+    this.page.url = "https://chielungcheung.github.io/2020/09/11/leveldb-annotations-0-usage-and-examples/";
+    this.page.identifier = "2020/09/11/leveldb-annotations-0-usage-and-examples/";
+    this.page.title = "leveldb 原理详解系列之零: 基本介绍与使用举例";
+    };
+  NexT.utils.loadComments(document.querySelector('#disqus_thread'), () => {
+    if (window.DISQUS) {
+      DISQUS.reset({
+        reload: true,
+        config: disqus_config
+      });
+    } else {
+      var d = document, s = d.createElement('script');
+      s.src = 'https://Chienlung.disqus.com/embed.js';
+      s.setAttribute('data-timestamp', '' + +new Date());
+      (d.head || d.body).appendChild(s);
+    }
+  });
+</script>
+
 </body>
 </html>
