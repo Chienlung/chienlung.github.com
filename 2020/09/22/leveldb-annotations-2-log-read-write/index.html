@@ -20,15 +20,15 @@
     var CONFIG = {"hostname":"chielungcheung.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta name="description" content="log 文件简介 读 log 核心文件与核心类 Reader 构造方法 Reader 读取方法   写 log 核心文件与核心类 Writer 构造方法 Writer 写方法      log 文件简介我们先简单回顾下 log 文件相关的基础知识点, 具体请见 Leveldb 原理详解系列之一: 接口与文件. log 文件(*.log)保存着数据库最近一系列更新操作, 它相当于 leveld">
+  <meta name="description" content="log 文件简介 读 log 核心文件与核心类 Reader 构造方法 Reader 读取方法   写 log 核心文件与核心类 Writer 构造方法 Writer 写方法      log 文件简介我们先简单回顾下 log 文件相关的基础知识点, 具体请见 Leveldb 源码详解系列之一: 接口与文件. log 文件(*.log)保存着数据库最近一系列更新操作, 它相当于 leveld">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Leveldb 源码详解系列之二: log 读写">
 <meta property="og:url" content="https://chielungcheung.github.io/2020/09/22/leveldb-annotations-2-log-read-write/index.html">
 <meta property="og:site_name" content="programatrix">
-<meta property="og:description" content="log 文件简介 读 log 核心文件与核心类 Reader 构造方法 Reader 读取方法   写 log 核心文件与核心类 Writer 构造方法 Writer 写方法      log 文件简介我们先简单回顾下 log 文件相关的基础知识点, 具体请见 Leveldb 原理详解系列之一: 接口与文件. log 文件(*.log)保存着数据库最近一系列更新操作, 它相当于 leveld">
+<meta property="og:description" content="log 文件简介 读 log 核心文件与核心类 Reader 构造方法 Reader 读取方法   写 log 核心文件与核心类 Writer 构造方法 Writer 写方法      log 文件简介我们先简单回顾下 log 文件相关的基础知识点, 具体请见 Leveldb 源码详解系列之一: 接口与文件. log 文件(*.log)保存着数据库最近一系列更新操作, 它相当于 leveld">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2020-09-22T19:16:28.000Z">
-<meta property="article:modified_time" content="2020-09-25T06:37:30.976Z">
+<meta property="article:modified_time" content="2020-09-25T06:44:51.329Z">
 <meta property="article:author" content="Chienlung Cheung">
 <meta property="article:tag" content="leveldb">
 <meta property="article:tag" content="LSM-Tree">
@@ -193,7 +193,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-09-25 06:37:30" itemprop="dateModified" datetime="2020-09-25T06:37:30+00:00">2020-09-25</time>
+                <time title="Modified: 2020-09-25 06:44:51" itemprop="dateModified" datetime="2020-09-25T06:44:51+00:00">2020-09-25</time>
               </span>
 
           
@@ -240,7 +240,7 @@
 </ul>
 <!-- tocstop -->
 
-<h1><span id="log-文件简介">log 文件简介</span></h1><p>我们先简单回顾下 log 文件相关的基础知识点, 具体请见 <a href="/2020/09/11/leveldb-annotations-1-interfaces-and-files/" title="Leveldb 原理详解系列之一: 接口与文件">Leveldb 原理详解系列之一: 接口与文件</a>.</p>
+<h1><span id="log-文件简介">log 文件简介</span></h1><p>我们先简单回顾下 log 文件相关的基础知识点, 具体请见 <a href="/2020/09/11/leveldb-annotations-1-interfaces-and-files/" title="Leveldb 源码详解系列之一: 接口与文件">Leveldb 源码详解系列之一: 接口与文件</a>.</p>
 <p>log 文件(*.log)保存着数据库最近一系列更新操作, 它相当于 leveldb 的 WAL(<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Write-ahead_logging">write-ahead logging</a>). 当前在用的 log 文件内容同时也会被记录到一个内存数据结构中(即 <code>memtable</code> ). 每个更新操作都被追加到当前的 log 文件和 <code>memtable</code> 中. 当 log 文件大小达到一个预定义的大小时(默认大约 4MB), 这个 log 文件对应的 <code>memtable</code> 就会被转换为一个 sorted table 文件落盘然后一个新的 log 文件就会被创建以保存未来的更新操作. </p>
 <p>log 文件内容是一系列 blocks, 每个 block 大小为 32KB(有时候最后一个 block 可能装不满). 每个 block 由一系列 records 构成, 具体定义如下(熟悉编译原理的应该对下述写法不陌生): </p>
 <pre><code>// 即 0 或多个 records, 0 或 1 个 trailer.
