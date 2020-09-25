@@ -22,13 +22,13 @@
 
   <meta name="description" content="基本介绍 特性 局限性 性能 测试配置 写性能 读性能     使用举例 构建 头文件介绍 打开(或新建)一个数据库 Status 类型 关闭数据库 数据库读写 原子更新 同步写操作 并发 迭代数据库 快照 Slice 切片 比较器 后向兼容性   性能调优 Block 大小 压缩 缓存 Key 的布局设计 过滤器   校验和 近似空间大小 环境变量 移植性      Leveldb 是一个">
 <meta property="og:type" content="article">
-<meta property="og:title" content="leveldb 原理详解系列之零: 基本介绍与使用举例">
+<meta property="og:title" content="Leveldb 原理详解系列之零: 基本介绍与使用举例">
 <meta property="og:url" content="https://chielungcheung.github.io/2020/09/11/leveldb-annotations-0-usage-and-examples/index.html">
 <meta property="og:site_name" content="programatrix">
 <meta property="og:description" content="基本介绍 特性 局限性 性能 测试配置 写性能 读性能     使用举例 构建 头文件介绍 打开(或新建)一个数据库 Status 类型 关闭数据库 数据库读写 原子更新 同步写操作 并发 迭代数据库 快照 Slice 切片 比较器 后向兼容性   性能调优 Block 大小 压缩 缓存 Key 的布局设计 过滤器   校验和 近似空间大小 环境变量 移植性      Leveldb 是一个">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2020-09-11T21:13:08.000Z">
-<meta property="article:modified_time" content="2020-09-21T14:52:40.641Z">
+<meta property="article:modified_time" content="2020-09-25T06:26:35.933Z">
 <meta property="article:author" content="Chienlung Cheung">
 <meta property="article:tag" content="leveldb">
 <meta property="article:tag" content="LSM-Tree">
@@ -48,7 +48,7 @@
   };
 </script>
 
-  <title>leveldb 原理详解系列之零: 基本介绍与使用举例 | programatrix</title>
+  <title>Leveldb 原理详解系列之零: 基本介绍与使用举例 | programatrix</title>
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-177829579-1"></script>
     <script>
@@ -176,7 +176,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          leveldb 原理详解系列之零: 基本介绍与使用举例
+          Leveldb 原理详解系列之零: 基本介绍与使用举例
         </h1>
 
         <div class="post-meta">
@@ -193,7 +193,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-09-21 14:52:40" itemprop="dateModified" datetime="2020-09-21T14:52:40+00:00">2020-09-21</time>
+                <time title="Modified: 2020-09-25 06:26:35" itemprop="dateModified" datetime="2020-09-25T06:26:35+00:00">2020-09-25</time>
               </span>
 
           
@@ -270,7 +270,7 @@
 <!-- tocstop -->
 
 <p><strong>Leveldb</strong> 是一个高速 KV 数据库, 它提供了一个持久性的 KV 存储. 其中 keys 和 values 都是随机字节数组, 并且存储时根据用户指定的比较函数对 keys 进行排序. </p>
-<p>它由 Google 开发的, 其作者为大名鼎鼎的 Sanjay Ghemawat (<a href="mailto:&#x73;&#x61;&#110;&#106;&#97;&#x79;&#64;&#x67;&#x6f;&#111;&#103;&#x6c;&#101;&#46;&#x63;&#x6f;&#x6d;">&#x73;&#x61;&#110;&#106;&#97;&#x79;&#64;&#x67;&#x6f;&#111;&#103;&#x6c;&#101;&#46;&#x63;&#x6f;&#x6d;</a>) 和 Jeff Dean (<a href="mailto:&#106;&#101;&#102;&#102;&#64;&#103;&#111;&#111;&#x67;&#x6c;&#x65;&#46;&#99;&#x6f;&#x6d;">&#106;&#101;&#102;&#102;&#64;&#103;&#111;&#111;&#x67;&#x6c;&#x65;&#46;&#99;&#x6f;&#x6d;</a>). 感谢他们对人类的贡献.</p>
+<p>它由 Google 开发的, 其作者为大名鼎鼎的 Sanjay Ghemawat (<a href="mailto:&#x73;&#97;&#x6e;&#x6a;&#97;&#121;&#64;&#x67;&#x6f;&#x6f;&#x67;&#x6c;&#101;&#x2e;&#x63;&#111;&#x6d;">&#x73;&#97;&#x6e;&#x6a;&#97;&#121;&#64;&#x67;&#x6f;&#x6f;&#x67;&#x6c;&#101;&#x2e;&#x63;&#111;&#x6d;</a>) 和 Jeff Dean (<a href="mailto:&#x6a;&#101;&#102;&#x66;&#64;&#103;&#111;&#111;&#x67;&#x6c;&#x65;&#x2e;&#99;&#111;&#109;">&#x6a;&#101;&#102;&#x66;&#64;&#103;&#111;&#111;&#x67;&#x6c;&#x65;&#x2e;&#99;&#111;&#109;</a>). 感谢他们对人类的贡献.</p>
 <h1><span id="基本介绍">基本介绍</span></h1><p>该部分主要介绍 leveldb 的功能, 局限性以及性能等.</p>
 <h2><span id="特性">特性</span></h2><ul>
 <li>keys 和 values 都可以是随机的字节数组. </li>
@@ -460,8 +460,8 @@
       <i class="fa fa-chevron-left"></i> Hello World, Again
     </a></div>
       <div class="post-nav-item">
-    <a href="/2020/09/11/leveldb-annotations-1-interfaces-and-files/" rel="next" title="leveldb 原理详解系列之一: 接口与文件">
-      leveldb 原理详解系列之一: 接口与文件 <i class="fa fa-chevron-right"></i>
+    <a href="/2020/09/11/leveldb-annotations-1-interfaces-and-files/" rel="next" title="Leveldb 原理详解系列之一: 接口与文件">
+      Leveldb 原理详解系列之一: 接口与文件 <i class="fa fa-chevron-right"></i>
     </a></div>
     </div>
       </footer>
@@ -541,7 +541,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-count">5</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -715,7 +715,7 @@ if (document.querySelectorAll('pre.mermaid').length) {
   var disqus_config = function() {
     this.page.url = "https://chielungcheung.github.io/2020/09/11/leveldb-annotations-0-usage-and-examples/";
     this.page.identifier = "2020/09/11/leveldb-annotations-0-usage-and-examples/";
-    this.page.title = "leveldb 原理详解系列之零: 基本介绍与使用举例";
+    this.page.title = "Leveldb 原理详解系列之零: 基本介绍与使用举例";
     };
   NexT.utils.loadComments(document.querySelector('#disqus_thread'), () => {
     if (window.DISQUS) {

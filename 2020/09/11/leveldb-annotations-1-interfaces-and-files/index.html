@@ -22,13 +22,13 @@
 
   <meta name="description" content="从哪里着手分析 leveldb 实现 leveldb 常用的接口 Open Put Delete Write Get NewIterator GetSnapshot ReleaseSnapshot GetProperty GetAppoximateSizes CompactRange   leveldb 的文件类型 log 文件 log 文件格式 log 文件格式的好处 log 文件的缺点(">
 <meta property="og:type" content="article">
-<meta property="og:title" content="leveldb 原理详解系列之一: 接口与文件">
+<meta property="og:title" content="Leveldb 原理详解系列之一: 接口与文件">
 <meta property="og:url" content="https://chielungcheung.github.io/2020/09/11/leveldb-annotations-1-interfaces-and-files/index.html">
 <meta property="og:site_name" content="programatrix">
 <meta property="og:description" content="从哪里着手分析 leveldb 实现 leveldb 常用的接口 Open Put Delete Write Get NewIterator GetSnapshot ReleaseSnapshot GetProperty GetAppoximateSizes CompactRange   leveldb 的文件类型 log 文件 log 文件格式 log 文件格式的好处 log 文件的缺点(">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2020-09-11T23:13:08.000Z">
-<meta property="article:modified_time" content="2020-09-21T14:52:40.641Z">
+<meta property="article:modified_time" content="2020-09-25T06:26:35.933Z">
 <meta property="article:author" content="Chienlung Cheung">
 <meta property="article:tag" content="leveldb">
 <meta property="article:tag" content="LSM-Tree">
@@ -48,7 +48,7 @@
   };
 </script>
 
-  <title>leveldb 原理详解系列之一: 接口与文件 | programatrix</title>
+  <title>Leveldb 原理详解系列之一: 接口与文件 | programatrix</title>
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-177829579-1"></script>
     <script>
@@ -176,7 +176,7 @@
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          leveldb 原理详解系列之一: 接口与文件
+          Leveldb 原理详解系列之一: 接口与文件
         </h1>
 
         <div class="post-meta">
@@ -193,7 +193,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-09-21 14:52:40" itemprop="dateModified" datetime="2020-09-21T14:52:40+00:00">2020-09-21</time>
+                <time title="Modified: 2020-09-25 06:26:35" itemprop="dateModified" datetime="2020-09-25T06:26:35+00:00">2020-09-25</time>
               </span>
 
           
@@ -249,7 +249,7 @@
 <li><a href="#%E8%AF%BB-log">读 log</a></li>
 </ul>
 </li>
-<li><a href="#%E4%B8%8E-log-%E6%96%87%E4%BB%B6%E9%85%8D%E5%A5%97%E7%9A%84-mmtable">与 log 文件配套的 mmtable</a><ul>
+<li><a href="#%E4%B8%8E-log-%E6%96%87%E4%BB%B6%E9%85%8D%E5%A5%97%E7%9A%84-memtable">与 log 文件配套的 memtable</a><ul>
 <li><a href="#%E7%BB%93%E6%9E%84">结构</a></li>
 <li><a href="#%E7%94%A8%E9%80%94">用途</a></li>
 </ul>
@@ -280,6 +280,7 @@
 </ul>
 <!-- tocstop -->
 
+<p>[toc]</p>
 <h2><span id="从哪里着手分析-leveldb-实现">从哪里着手分析 leveldb 实现</span></h2><p>在了解了其基本使用以后, 如果想理解 leveldb 基本原理, 则有两个抓手. 第一个是  <code>include</code> 目录下的头文件, 尤其是 <code>db.h</code> , 第二个就是它的文件类型及其格式.</p>
 <p>下面我们就从接口和文件两个方向来切入 leveldb 的设计与实现.</p>
 <h2><span id="leveldb-常用的接口">leveldb 常用的接口</span></h2><h3><span id="open">Open</span></h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 打开一个名为 name 的数据库. </span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * 打开成功, 会把一个指向基于堆内存的数据库指针存储到 *dbptr, 同时返回 OK; 如果打开失败, </span></span><br><span class="line"><span class="comment"> * 存储 nullptr 到 *dbptr 同时返回一个错误状态. </span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * 调用者不再使用这个数据库时需要负责释放 *dbptr 指向的内存. </span></span><br><span class="line"><span class="comment"> * @param options 控制数据库行为和性能的参数配置</span></span><br><span class="line"><span class="comment"> * @param name 数据库名称</span></span><br><span class="line"><span class="comment"> * @param dbptr 存储指向堆内存中数据库的指针</span></span><br><span class="line"><span class="comment"> * @return</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> Status <span class="title">Open</span><span class="params">(<span class="keyword">const</span> Options&amp; options,</span></span></span><br><span class="line"><span class="function"><span class="params">                    <span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; name,</span></span></span><br><span class="line"><span class="function"><span class="params">                    DB** dbptr)</span></span>;</span><br></pre></td></tr></table></figure>
@@ -299,7 +300,7 @@
 </ul>
 </li>
 <li><ol start="2">
-<li>遍历数据库目录下全部文件. 筛选出 sorted table 文件, 验证 VersionSet 包含的 level 架构图有效性; 同时将全部 log 文件筛选换出来后续反序列化成 memtable. 恢复 log 文件时会按照从旧到新逐个 log 文件恢复, 这样新的修改会覆盖旧的, 如果对应 mmtable 太大了, 将其转为 sorted table 文件写入磁盘, 同时将其对应的 table 对象放到 table_cache_ 缓存. 若发生 memtable 落盘表示 level 架构新增文件则将 save_manifest 标记为 true, 表示需要写变更日志到 manifest 文件. 恢复 log 文件主要由方法 <code>leveldb::DBImpl::RecoverLogFile</code> 负责完成.</li>
+<li>遍历数据库目录下全部文件. 筛选出 sorted table 文件, 验证 VersionSet 包含的 level 架构图有效性; 同时将全部 log 文件筛选换出来后续反序列化成 memtable. 恢复 log 文件时会按照从旧到新逐个 log 文件恢复, 这样新的修改会覆盖旧的, 如果对应 memtable 太大了, 将其转为 sorted table 文件写入磁盘, 同时将其对应的 table 对象放到 table_cache_ 缓存. 若发生 memtable 落盘表示 level 架构新增文件则将 save_manifest 标记为 true, 表示需要写变更日志到 manifest 文件. 恢复 log 文件主要由方法 <code>leveldb::DBImpl::RecoverLogFile</code> 负责完成.</li>
 </ol>
 </li>
 </ul>
@@ -313,12 +314,12 @@
 
 <p>该方法是 <code>leveldb::DBImpl::Write</code> 原型.</p>
 <p>针对调用 db 进行的写操作, 都会生成一个对应的 <code>struct leveldb::DBImpl::Writer</code>, 其封装了写入数据和写入进度. 新构造的 writer 会被放入一个队列. 循环检查, 若当前 writer 工作没完成并且不是队首元素, 则当前有其它 writer 在写, 挂起当前 writer 等待条件成熟. 当前 writer 如果被排在前面的 writer 给合并写入了, 那么它的 done 就被标记为完成了. 否则会被其它在写入的 writer 调用其 signal 将其唤醒执行写入工作.</p>
-<p>当执行写入工作时(被前一个执行写入并完成工作的 writer 唤醒了), 首先确认是否为本次该 writer 写操作分配新的 log 文件, 如果需要则分配. 因为该 writer 成为队首 writer 了, 则它负责将队列前面若干 writers 的 batch 合并为一个(该工作由<code>leveldb::DBImpl::BuildBatchGroup</code> 负责完成), 注意, 被合并的 writers 不出队(待合并写入完成再出队, 具体见后面描述), 所以写 log 期间队首 writer 不变. 具体写入工作由 <code>leveldb::log::Writer::AddRecord</code> 负责, 就是将数据序列化为 record 写入 log 文件. 如果追加 log 文件成功,则将被追加的数据插入到内存中的 mmtable 中. 待写入完毕, 该 writer 将参与前述 batch group 写入 log 文件的 writer 都取出来并设置为写入完成, 即将其出队, 将其 done 置为 true, 同时向其发送信号将其唤醒, 被唤醒后它会检查其 done 标识并返回. 最后唤醒队首 writer 执行下一个合并写入.</p>
+<p>当执行写入工作时(被前一个执行写入并完成工作的 writer 唤醒了), 首先确认是否为本次该 writer 写操作分配新的 log 文件, 如果需要则分配. 因为该 writer 成为队首 writer 了, 则它负责将队列前面若干 writers 的 batch 合并为一个(该工作由<code>leveldb::DBImpl::BuildBatchGroup</code> 负责完成), 注意, 被合并的 writers 不出队(待合并写入完成再出队, 具体见后面描述), 所以写 log 期间队首 writer 不变. 具体写入工作由 <code>leveldb::log::Writer::AddRecord</code> 负责, 就是将数据序列化为 record 写入 log 文件. 如果追加 log 文件成功,则将被追加的数据插入到内存中的 memtable 中. 待写入完毕, 该 writer 将参与前述 batch group 写入 log 文件的 writer 都取出来并设置为写入完成, 即将其出队, 将其 done 置为 true, 同时向其发送信号将其唤醒, 被唤醒后它会检查其 done 标识并返回. 最后唤醒队首 writer 执行下一个合并写入.</p>
 <h3><span id="get">Get</span></h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 查询键为 key 的数据项, 如果存在则将对应的 value 地址存储到第二个参数中. </span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * 如果 key 不存在, 第二个参数不变, 返回值为 IsNotFound Status. </span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * @param options 本次读操作对应的配置参数</span></span><br><span class="line"><span class="comment"> * @param key 要查询的 key, Slice 引用类型</span></span><br><span class="line"><span class="comment"> * @param value 存储与 key 对应的值的指针, string 指针类型</span></span><br><span class="line"><span class="comment"> * @return</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">virtual</span> Status <span class="title">Get</span><span class="params">(<span class="keyword">const</span> ReadOptions&amp; options,</span></span></span><br><span class="line"><span class="function"><span class="params">                    <span class="keyword">const</span> Slice&amp; key, <span class="built_in">std</span>::<span class="built_in">string</span>* value)</span> </span>= <span class="number">0</span>;</span><br></pre></td></tr></table></figure>
 
 <ul>
-<li>1 先查询当前在用的 mmtable(具体工作由 <code>leveldb::MemTable::Get</code> 负责, 本质就是 SkipList 查询, 速度很快)</li>
-<li>2 如果没有则查询正在转换为 sorted table 的 mmtable 中寻找</li>
+<li>1 先查询当前在用的 memtable(具体工作由 <code>leveldb::MemTable::Get</code> 负责, 本质就是 SkipList 查询, 速度很快)</li>
+<li>2 如果没有则查询正在转换为 sorted table 的 memtable 中寻找</li>
 <li>3 如果没有则我们在磁盘上采用从底向上 level-by-level 的寻找目标 key. </li>
 </ul>
 <p>针对上述第 3 步, 具体由 db VersionSet 的当前 Version 负责, 因为该结构保存了 db 当前最新的 level 架构信息, 即每个 level 及其对应的文件列表和每个文件的键范围. 对应方法为 <code>leveldb::Version::Get</code>, 具体为:</p>
@@ -426,13 +427,13 @@ LAST == 4</code></pre>
 <p>该方法会被 <code>leveldb::Status leveldb::DBImpl::Write(const leveldb::WriteOptions &amp;options, leveldb::WriteBatch *my_batch)</code> 调用以响应用户的写操作. <code>DBImpl</code> 是 <code>DB</code> 的派生类, 其 <code>Put</code> 和 <code>Delete</code> 方法真正工作是由派生类的 <code>Write</code> 负责的.</p>
 <h5><span id="读-log">读 log</span></h5><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">bool</span> leveldb::<span class="built_in">log</span>::Reader::ReadRecord(leveldb::Slice *record, <span class="built_in">string</span> *scratch)</span><br></pre></td></tr></table></figure>
 
-<p>该方法负责从 log 文件读取内容并反序列化为 Record. 该方法会在 db 的 <code>Open</code> 方法中调用, 负责将磁盘上的 log 文件转换为内存中 mmtable. 其它数据库恢复场景也会用到该方法.</p>
-<h4><span id="与-log-文件配套的-mmtable">与 log 文件配套的 mmtable</span></h4><p>memtable 可以看作是 log 文件的内存形式, 但是格式不同.</p>
+<p>该方法负责从 log 文件读取内容并反序列化为 Record. 该方法会在 db 的 <code>Open</code> 方法中调用, 负责将磁盘上的 log 文件转换为内存中 memtable. 其它数据库恢复场景也会用到该方法.</p>
+<h4><span id="与-log-文件配套的-memtable">与 log 文件配套的 memtable</span></h4><p>memtable 可以看作是 log 文件的内存形式, 但是格式不同.</p>
 <h5><span id="结构">结构</span></h5><p>它的本质就是一个 SkipList.</p>
-<h5><span id="用途">用途</span></h5><p>我们已经知道, 每个 log 文件在内存有一个对应的 mmtable, 它和正在压实的 mmtable 以及磁盘上的各个 level 包含的文件构成了数据全集. 所以当调用 DB 的 <code>Get</code> 方法查询某个 key 的时候, 具体步骤是这样的(具体实现位于 <code>leveldb::Status leveldb::Version::Get(const leveldb::ReadOptions &amp;options, const leveldb::LookupKey &amp;k, string *value, leveldb::Version::GetStats *stats)</code>, DB 的 <code>Get</code> 方法会调用前述实现.):</p>
+<h5><span id="用途">用途</span></h5><p>我们已经知道, 每个 log 文件在内存有一个对应的 memtable, 它和正在压实的 memtable 以及磁盘上的各个 level 包含的文件构成了数据全集. 所以当调用 DB 的 <code>Get</code> 方法查询某个 key 的时候, 具体步骤是这样的(具体实现位于 <code>leveldb::Status leveldb::Version::Get(const leveldb::ReadOptions &amp;options, const leveldb::LookupKey &amp;k, string *value, leveldb::Version::GetStats *stats)</code>, DB 的 <code>Get</code> 方法会调用前述实现.):</p>
 <ul>
-<li>1 先查询当前在用的 mmtable, 查到返回, 未查到下一步</li>
-<li>2 查询正在转换为 sorted table 的 mmtable 中寻找, 查到返回, 未查到下一步 </li>
+<li>1 先查询当前在用的 memtable, 查到返回, 未查到下一步</li>
+<li>2 查询正在转换为 sorted table 的 memtable 中寻找, 查到返回, 未查到下一步 </li>
 <li>3 在磁盘上采用从底向上 level-by-level 的寻找目标 key. <ul>
 <li>由于 level 越低数据越新, 因此, 当我们在一个较低的 level 找到数据的时候, 不用在更高的 levels 找了.</li>
 <li>由于 level-0 文件之间可能存在重叠, 而且针对同一个 key, 后产生的文件数据更新所以先将包含 key 的文件找出来按照文件号从大到小(对应文件从新到老)排序查找 key; 针对 level-1 及其以上 level, 由于每个 level 内文件之间不存在重叠, 于是在每个 level 中直接采用二分查找定位 key.</li>
@@ -592,8 +593,8 @@ dbname/[0-9]+.(log|sst|ldb)</code></pre>
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2020/09/11/leveldb-annotations-0-usage-and-examples/" rel="prev" title="leveldb 原理详解系列之零: 基本介绍与使用举例">
-      <i class="fa fa-chevron-left"></i> leveldb 原理详解系列之零: 基本介绍与使用举例
+    <a href="/2020/09/11/leveldb-annotations-0-usage-and-examples/" rel="prev" title="Leveldb 原理详解系列之零: 基本介绍与使用举例">
+      <i class="fa fa-chevron-left"></i> Leveldb 原理详解系列之零: 基本介绍与使用举例
     </a></div>
       <div class="post-nav-item">
     <a href="/2020/09/21/%E4%BD%BF%E7%94%A8-eBPF-%E8%B0%83%E8%AF%95%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E7%9A%84-Go-%E7%A8%8B%E5%BA%8F/" rel="next" title="使用 eBPF 调试生产环境的 Go 程序">
@@ -677,7 +678,7 @@ dbname/[0-9]+.(log|sst|ldb)</code></pre>
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-count">5</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -851,7 +852,7 @@ if (document.querySelectorAll('pre.mermaid').length) {
   var disqus_config = function() {
     this.page.url = "https://chielungcheung.github.io/2020/09/11/leveldb-annotations-1-interfaces-and-files/";
     this.page.identifier = "2020/09/11/leveldb-annotations-1-interfaces-and-files/";
-    this.page.title = "leveldb 原理详解系列之一: 接口与文件";
+    this.page.title = "Leveldb 原理详解系列之一: 接口与文件";
     };
   NexT.utils.loadComments(document.querySelector('#disqus_thread'), () => {
     if (window.DISQUS) {
