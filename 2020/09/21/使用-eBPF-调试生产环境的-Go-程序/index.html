@@ -17,13 +17,13 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"chielungcheung.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+    var CONFIG = {"hostname":"chienlungcheung.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
   <meta name="description" content="介绍 什么是 eBPF Uprobes 构建追踪程序 番外 安装 BCC too many arguments 编译错误      最新的 Go Weekly 推送了这篇文章, eBPF 作为新时代的剖析工具正在如火如荼发展, 读完感觉用来入门很好, 就根据自己理解编译了这篇文章. 做实验过程遇到一些问题, 在最后加了一个番外章节可参考. 下面正式开始. 不用重新编译&#x2F;部署线上程序而是借助">
 <meta property="og:type" content="article">
 <meta property="og:title" content="使用 eBPF 调试生产环境的 Go 程序">
-<meta property="og:url" content="https://chielungcheung.github.io/2020/09/21/%E4%BD%BF%E7%94%A8-eBPF-%E8%B0%83%E8%AF%95%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E7%9A%84-Go-%E7%A8%8B%E5%BA%8F/index.html">
+<meta property="og:url" content="https://chienlungcheung.github.io/2020/09/21/%E4%BD%BF%E7%94%A8-eBPF-%E8%B0%83%E8%AF%95%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E7%9A%84-Go-%E7%A8%8B%E5%BA%8F/index.html">
 <meta property="og:site_name" content="programatrix">
 <meta property="og:description" content="介绍 什么是 eBPF Uprobes 构建追踪程序 番外 安装 BCC too many arguments 编译错误      最新的 Go Weekly 推送了这篇文章, eBPF 作为新时代的剖析工具正在如火如荼发展, 读完感觉用来入门很好, 就根据自己理解编译了这篇文章. 做实验过程遇到一些问题, 在最后加了一个番外章节可参考. 下面正式开始. 不用重新编译&#x2F;部署线上程序而是借助">
 <meta property="og:locale" content="en_US">
@@ -32,14 +32,14 @@
 <meta property="og:image" content="https://blog.pixielabs.ai/static/87301c7282e8f8270fee2afb9fe85c81/app-trace.svg">
 <meta property="og:image" content="https://blog.pixielabs.ai/static/4de8713a5b05e1f9132350f333572174/e2e-demo.gif">
 <meta property="article:published_time" content="2020-09-21T22:43:27.000Z">
-<meta property="article:modified_time" content="2020-12-11T15:35:23.352Z">
+<meta property="article:modified_time" content="2020-12-12T03:15:30.304Z">
 <meta property="article:author" content="Chienlung Cheung">
 <meta property="article:tag" content="eBPF">
 <meta property="article:tag" content="golang">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="http://www.brendangregg.com/eBPF/linux_ebpf_internals.png">
 
-<link rel="canonical" href="https://chielungcheung.github.io/2020/09/21/%E4%BD%BF%E7%94%A8-eBPF-%E8%B0%83%E8%AF%95%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E7%9A%84-Go-%E7%A8%8B%E5%BA%8F/">
+<link rel="canonical" href="https://chienlungcheung.github.io/2020/09/21/%E4%BD%BF%E7%94%A8-eBPF-%E8%B0%83%E8%AF%95%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E7%9A%84-Go-%E7%A8%8B%E5%BA%8F/">
 
 
 <script id="page-configurations">
@@ -167,7 +167,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://chielungcheung.github.io/2020/09/21/%E4%BD%BF%E7%94%A8-eBPF-%E8%B0%83%E8%AF%95%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E7%9A%84-Go-%E7%A8%8B%E5%BA%8F/">
+    <link itemprop="mainEntityOfPage" href="https://chienlungcheung.github.io/2020/09/21/%E4%BD%BF%E7%94%A8-eBPF-%E8%B0%83%E8%AF%95%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E7%9A%84-Go-%E7%A8%8B%E5%BA%8F/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -197,7 +197,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-12-11 15:35:23" itemprop="dateModified" datetime="2020-12-11T15:35:23+00:00">2020-12-11</time>
+                <time title="Modified: 2020-12-12 03:15:30" itemprop="dateModified" datetime="2020-12-12T03:15:30+00:00">2020-12-12</time>
               </span>
 
           
@@ -577,7 +577,7 @@ if (document.querySelectorAll('pre.mermaid').length) {
 </script>
 <script>
   var disqus_config = function() {
-    this.page.url = "https://chielungcheung.github.io/2020/09/21/%E4%BD%BF%E7%94%A8-eBPF-%E8%B0%83%E8%AF%95%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E7%9A%84-Go-%E7%A8%8B%E5%BA%8F/";
+    this.page.url = "https://chienlungcheung.github.io/2020/09/21/%E4%BD%BF%E7%94%A8-eBPF-%E8%B0%83%E8%AF%95%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E7%9A%84-Go-%E7%A8%8B%E5%BA%8F/";
     this.page.identifier = "2020/09/21/使用-eBPF-调试生产环境的-Go-程序/";
     this.page.title = "使用 eBPF 调试生产环境的 Go 程序";
     };

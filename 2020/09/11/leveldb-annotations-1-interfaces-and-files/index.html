@@ -17,25 +17,25 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"chielungcheung.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+    var CONFIG = {"hostname":"chienlungcheung.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
   <meta name="description" content="从哪里着手分析 leveldb 实现 leveldb 常用的接口 Open Put Delete Write Get NewIterator GetSnapshot ReleaseSnapshot GetProperty GetAppoximateSizes CompactRange   leveldb 的文件类型 log 文件 log 文件格式 log 文件格式的好处 log 文件的缺点(">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Leveldb 源码详解系列之一: 接口与文件">
-<meta property="og:url" content="https://chielungcheung.github.io/2020/09/11/leveldb-annotations-1-interfaces-and-files/index.html">
+<meta property="og:url" content="https://chienlungcheung.github.io/2020/09/11/leveldb-annotations-1-interfaces-and-files/index.html">
 <meta property="og:site_name" content="programatrix">
 <meta property="og:description" content="从哪里着手分析 leveldb 实现 leveldb 常用的接口 Open Put Delete Write Get NewIterator GetSnapshot ReleaseSnapshot GetProperty GetAppoximateSizes CompactRange   leveldb 的文件类型 log 文件 log 文件格式 log 文件格式的好处 log 文件的缺点(">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2020-09-11T23:13:08.000Z">
-<meta property="article:modified_time" content="2020-12-11T15:35:23.352Z">
+<meta property="article:modified_time" content="2020-12-12T03:15:30.304Z">
 <meta property="article:author" content="Chienlung Cheung">
 <meta property="article:tag" content="leveldb">
 <meta property="article:tag" content="LSM-Tree">
 <meta property="article:tag" content="db">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="https://chielungcheung.github.io/2020/09/11/leveldb-annotations-1-interfaces-and-files/">
+<link rel="canonical" href="https://chienlungcheung.github.io/2020/09/11/leveldb-annotations-1-interfaces-and-files/">
 
 
 <script id="page-configurations">
@@ -163,7 +163,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://chielungcheung.github.io/2020/09/11/leveldb-annotations-1-interfaces-and-files/">
+    <link itemprop="mainEntityOfPage" href="https://chienlungcheung.github.io/2020/09/11/leveldb-annotations-1-interfaces-and-files/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -193,7 +193,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-12-11 15:35:23" itemprop="dateModified" datetime="2020-12-11T15:35:23+00:00">2020-12-11</time>
+                <time title="Modified: 2020-12-12 03:15:30" itemprop="dateModified" datetime="2020-12-12T03:15:30+00:00">2020-12-12</time>
               </span>
 
           
@@ -850,7 +850,7 @@ if (document.querySelectorAll('pre.mermaid').length) {
 </script>
 <script>
   var disqus_config = function() {
-    this.page.url = "https://chielungcheung.github.io/2020/09/11/leveldb-annotations-1-interfaces-and-files/";
+    this.page.url = "https://chienlungcheung.github.io/2020/09/11/leveldb-annotations-1-interfaces-and-files/";
     this.page.identifier = "2020/09/11/leveldb-annotations-1-interfaces-and-files/";
     this.page.title = "Leveldb 源码详解系列之一: 接口与文件";
     };
