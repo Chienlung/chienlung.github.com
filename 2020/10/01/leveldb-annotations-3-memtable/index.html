@@ -28,7 +28,7 @@
 <meta property="og:description" content="1 核心文件和核心类 2 MemTable 核心成员变量 3 MemTable 核心方法 3.1 MemTable 写方法 3.2 MemTable 读方法 3.3 MemTable 迭代器 3.4 MemTable 内存估计   4 MemTable 比较器之 KeyComparator 5 MemTable 内存管理之 Arena 5.1 如何向 Arena 申请指定大小的内存 5.2">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2020-10-01T21:47:36.000Z">
-<meta property="article:modified_time" content="2020-12-12T03:15:30.304Z">
+<meta property="article:modified_time" content="2021-02-22T04:01:48.819Z">
 <meta property="article:author" content="Chienlung Cheung">
 <meta property="article:tag" content="leveldb">
 <meta property="article:tag" content="LSM-Tree">
@@ -193,7 +193,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-12-12 03:15:30" itemprop="dateModified" datetime="2020-12-12T03:15:30+00:00">2020-12-12</time>
+                <time title="Modified: 2021-02-22 04:01:48" itemprop="dateModified" datetime="2021-02-22T04:01:48+00:00">2021-02-22</time>
               </span>
 
           
@@ -261,7 +261,7 @@
 </ul>
 <!-- tocstop -->
 
-<p>memtable 可以看作是 log 文件的内存形式, 但是格式不同. 每个 log 文件在内存有一个对应的 memtable, 它和正在压实的 memtable 以及磁盘上的各个 level 包含的文件构成了数据全集. memtable 的本质就是一个 SkipList.</p>
+<p>memtable 可以看作是 log 文件的内存形式, 但是格式不同. 每个 log 文件在内存有一个对应的 memtable, 它和正在压实的 memtable(所以可能同时有两个 memtable 存在) 以及磁盘上的各个 level 包含的文件构成了数据全集. memtable 的本质就是一个 SkipList.</p>
 <h1><span id="1-核心文件和核心类">1 核心文件和核心类</span></h1><table>
 <thead>
 <tr>
@@ -361,7 +361,7 @@
 <p>其中该数据项前四个部分构成了 InternalKey, 该结构是 MemTable 做排序的依据. 最后将该数据项插入到底层的 SkipList 中. 具体处理流程见下面代码注释:</p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">MemTable::Add</span><span class="params">(SequenceNumber s, ValueType type,</span></span></span><br><span class="line"><span class="function"><span class="params">                   <span class="keyword">const</span> Slice&amp; key,</span></span></span><br><span class="line"><span class="function"><span class="params">                   <span class="keyword">const</span> Slice&amp; value)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 插入到 memtable 的数据项的数据格式为</span></span><br><span class="line">  <span class="comment">// (注意, memtable key 的构成与 LookupKey 一样, 即 user_key + 序列号 + 操作类型):</span></span><br><span class="line">  <span class="comment">// [varint32 类型的 internal_key_size, </span></span><br><span class="line">  <span class="comment">//  user_key, </span></span><br><span class="line">  <span class="comment">//  序列号 + 操作类型, </span></span><br><span class="line">  <span class="comment">//  varint32 类型的 value_size, </span></span><br><span class="line">  <span class="comment">//  value]</span></span><br><span class="line">  <span class="comment">// 其中, internal_key_size = user_key size + 8</span></span><br><span class="line">  <span class="keyword">size_t</span> key_size = key.size();</span><br><span class="line">  <span class="keyword">size_t</span> val_size = value.size();</span><br><span class="line">  <span class="keyword">size_t</span> internal_key_size = key_size + <span class="number">8</span>;</span><br><span class="line">  <span class="comment">// 编码后的数据项总长度</span></span><br><span class="line">  <span class="keyword">const</span> <span class="keyword">size_t</span> encoded_len =</span><br><span class="line">      VarintLength(internal_key_size) + internal_key_size +</span><br><span class="line">      VarintLength(val_size) + val_size; </span><br><span class="line">  <span class="comment">// 分配用来存储数据项的内存    </span></span><br><span class="line">  <span class="keyword">char</span>* buf = arena_.Allocate(encoded_len); </span><br><span class="line">  <span class="comment">// 将编码为 varint32 格式的 internal_key_size 写入内存</span></span><br><span class="line">  <span class="keyword">char</span>* p = EncodeVarint32(buf, internal_key_size); </span><br><span class="line">  <span class="comment">// 将 user_key 写入内存</span></span><br><span class="line">  <span class="built_in">memcpy</span>(p, key.data(), key_size); </span><br><span class="line">  p += key_size;</span><br><span class="line">  <span class="comment">// 将序列号和操作类型写入内存.</span></span><br><span class="line">  <span class="comment">// 注意, 序列号为高 7 个字节;  </span></span><br><span class="line">  <span class="comment">// 将序列号左移 8 位, 空出最低 1 个字节写入操作类型 type. </span></span><br><span class="line">  EncodeFixed64(p, (s &lt;&lt; <span class="number">8</span>) | type); </span><br><span class="line">  p += <span class="number">8</span>;</span><br><span class="line">  <span class="comment">// 将编码为 varint32 格式的 value_size 写入内存</span></span><br><span class="line">  p = EncodeVarint32(p, val_size); </span><br><span class="line">  <span class="comment">// 将 value 写入内存</span></span><br><span class="line">  <span class="built_in">memcpy</span>(p, value.data(), val_size); </span><br><span class="line">  assert(p + val_size == buf + encoded_len);</span><br><span class="line">  <span class="comment">// 将数据项插入跳跃表</span></span><br><span class="line">  table_.Insert(buf); </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>可以看到由于模块化抽象做得好, 整体来说还是比较简单的. 下面再重点说一下上述处理中有关内存分配(<code>arena_.Allocate()</code>)和数据项插入到 SkipList (<code>table_.Insert()</code>) 的相关操作.</p>
+<p>可以看到由于模块化抽象做得好, 整体来说还是比较简单的. 后面章节会重点说一下上述处理中有关内存分配(<code>arena_.Allocate()</code>)和数据项插入到 SkipList (<code>table_.Insert()</code>) 的相关操作.</p>
 <h2><span id="32-memtable-读方法">3.2 MemTable 读方法</span></h2><p><code>bool Get(const LookupKey&amp; key, std::string* value, Status* s)</code> 用于实现针对 memtable 的读操作.</p>
 <p>当用户调用 DB 的 <code>Get</code> 方法查询某个 key 的时候, 具体步骤是这样的(具体实现位于 <code>leveldb::Status leveldb::Version::Get(const leveldb::ReadOptions &amp;options, const leveldb::LookupKey &amp;k, string *value, leveldb::Version::GetStats *stats)</code>, DB 的 <code>Get</code> 方法会调用前述实现.):</p>
 <ul>
@@ -759,7 +759,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-count">9</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -791,7 +791,7 @@
 <div class="copyright">
   
   &copy; 
-  <span itemprop="copyrightYear">2020</span>
+  <span itemprop="copyrightYear">2021</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>

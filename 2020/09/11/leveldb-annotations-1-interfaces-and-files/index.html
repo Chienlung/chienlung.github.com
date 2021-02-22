@@ -28,7 +28,7 @@
 <meta property="og:description" content="从哪里着手分析 leveldb 实现 leveldb 常用的接口 Open Put Delete Write Get NewIterator GetSnapshot ReleaseSnapshot GetProperty GetAppoximateSizes CompactRange   leveldb 的文件类型 log 文件 log 文件格式 log 文件格式的好处 log 文件的缺点(">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2020-09-11T23:13:08.000Z">
-<meta property="article:modified_time" content="2020-12-12T03:15:30.304Z">
+<meta property="article:modified_time" content="2021-02-22T04:01:48.819Z">
 <meta property="article:author" content="Chienlung Cheung">
 <meta property="article:tag" content="leveldb">
 <meta property="article:tag" content="LSM-Tree">
@@ -193,7 +193,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2020-12-12 03:15:30" itemprop="dateModified" datetime="2020-12-12T03:15:30+00:00">2020-12-12</time>
+                <time title="Modified: 2021-02-22 04:01:48" itemprop="dateModified" datetime="2021-02-22T04:01:48+00:00">2021-02-22</time>
               </span>
 
           
@@ -283,27 +283,23 @@
 <p>[toc]</p>
 <h2><span id="从哪里着手分析-leveldb-实现">从哪里着手分析 leveldb 实现</span></h2><p>在了解了其基本使用以后, 如果想理解 leveldb 基本原理, 则有两个抓手. 第一个是  <code>include</code> 目录下的头文件, 尤其是 <code>db.h</code> , 第二个就是它的文件类型及其格式.</p>
 <p>下面我们就从接口和文件两个方向来切入 leveldb 的设计与实现.</p>
-<h2><span id="leveldb-常用的接口">leveldb 常用的接口</span></h2><h3><span id="open">Open</span></h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 打开一个名为 name 的数据库. </span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * 打开成功, 会把一个指向基于堆内存的数据库指针存储到 *dbptr, 同时返回 OK; 如果打开失败, </span></span><br><span class="line"><span class="comment"> * 存储 nullptr 到 *dbptr 同时返回一个错误状态. </span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * 调用者不再使用这个数据库时需要负责释放 *dbptr 指向的内存. </span></span><br><span class="line"><span class="comment"> * @param options 控制数据库行为和性能的参数配置</span></span><br><span class="line"><span class="comment"> * @param name 数据库名称</span></span><br><span class="line"><span class="comment"> * @param dbptr 存储指向堆内存中数据库的指针</span></span><br><span class="line"><span class="comment"> * @return</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> Status <span class="title">Open</span><span class="params">(<span class="keyword">const</span> Options&amp; options,</span></span></span><br><span class="line"><span class="function"><span class="params">                    <span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; name,</span></span></span><br><span class="line"><span class="function"><span class="params">                    DB** dbptr)</span></span>;</span><br></pre></td></tr></table></figure>
+<h2><span id="leveldb-常用的接口">leveldb 常用的接口</span></h2><h3><span id="open">Open</span></h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 打开一个名为 name 的数据库. </span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * 打开成功, 会把一个指向基于堆内存的数据库指针存储到 *dbptr, 同时返回 OK; 如果打开失败, </span></span><br><span class="line"><span class="comment"> * 存储 nullptr 到 *dbptr 同时返回一个错误状态. </span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * 调用者不再使用这个数据库时需要负责释放 *dbptr 指向的内存. </span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * @param options 控制数据库行为和性能的参数配置</span></span><br><span class="line"><span class="comment"> * @param name 数据库名称</span></span><br><span class="line"><span class="comment"> * @param dbptr 存储指向堆内存中数据库的指针</span></span><br><span class="line"><span class="comment"> * @return</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> Status <span class="title">Open</span><span class="params">(<span class="keyword">const</span> Options&amp; options,</span></span></span><br><span class="line"><span class="function"><span class="params">                    <span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; name,</span></span></span><br><span class="line"><span class="function"><span class="params">                    DB** dbptr)</span></span>;</span><br></pre></td></tr></table></figure>
 
 <p>该方法在数据库启动时调用, 主要工作由 <code>leveldb::DBImpl::Recover</code> 方法完成, 后者主要做如下事情:</p>
-<ul>
-<li><ol>
-<li>调用其 VersionSet 成员的 <code>leveldb::VersionSet::Recover</code> 方法该方法从磁盘读取 CURRENT 文件, 进而读取 MANIFEST 文件内容, 然后在内存建立 level 架构:</li>
-</ol>
+<ol>
+<li><p>调用其 VersionSet 成员的 <code>leveldb::VersionSet::Recover</code> 方法. 该方法从磁盘读取 CURRENT 文件, 进而读取 MANIFEST 文件内容, 然后在内存重建 level 架构:</p>
 <ul>
 <li>读取 CURRENT 文件(不存在则新建)找到最新的 MANIFEST 文件(不存在则新建)的名称</li>
-<li>读取该 MANIFEST 文件内容与当前 Version 保存的 level 架构合并保存到一个新建的 Version 中, 然后将这个新的 version 作为当前的 version.</li>
+<li>读取该 MANIFEST 文件内容与当前 Version 保存的 level 架构合并保存到一个新建的 Version 中, 然后将这个新的 version 作为当前的 version, 即最新的 level 架构信息.</li>
 <li>清理过期的文件</li>
 <li>这一步我们可以打开全部 sstables, 但最好等会再打开</li>
 <li>将 log 文件块转换为一个新的 level-0 sstable</li>
 <li>将接下来的要写的数据写入一个新的 log 文件</li>
 </ul>
 </li>
-<li><ol start="2">
-<li>遍历数据库目录下全部文件. 筛选出 sorted table 文件, 验证 VersionSet 包含的 level 架构图有效性; 同时将全部 log 文件筛选换出来后续反序列化成 memtable. 恢复 log 文件时会按照从旧到新逐个 log 文件恢复, 这样新的修改会覆盖旧的, 如果对应 memtable 太大了, 将其转为 sorted table 文件写入磁盘, 同时将其对应的 table 对象放到 table_cache_ 缓存. 若发生 memtable 落盘表示 level 架构新增文件则将 save_manifest 标记为 true, 表示需要写变更日志到 manifest 文件. 恢复 log 文件主要由方法 <code>leveldb::DBImpl::RecoverLogFile</code> 负责完成.</li>
-</ol>
+<li><p>遍历数据库目录下全部文件. 筛选出 sorted table 文件, 验证 VersionSet 包含的 level 架构图有效性; 同时将全部 log 文件筛选换出来后续反序列化成 memtable. 恢复 log 文件时会按照从旧到新逐个 log 文件恢复, 这样新的修改会覆盖旧的, 如果对应 memtable 太大了, 将其转为 sorted table 文件写入磁盘, 同时将其对应的 table 对象放到 table_cache_ 缓存. 若发生 memtable 落盘表示 level 架构新增文件则将 save_manifest 标记为 true, 表示需要写变更日志到 manifest 文件. 恢复 log 文件主要由方法 <code>leveldb::DBImpl::RecoverLogFile</code> 负责完成.</p>
 </li>
-</ul>
+</ol>
 <h3><span id="put">Put</span></h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 将 &lt;key, value&gt; 对写入数据库, 成功返回 OK, 失败返回错误状态. </span></span><br><span class="line"><span class="comment"> * @param options 本次写操作相关的配置参数, 如果有需要可以将该参数中的 sync 置为 true, 不容易丢数据但更慢. </span></span><br><span class="line"><span class="comment"> * @param key Slice 类型的 key</span></span><br><span class="line"><span class="comment"> * @param value Slice 类型的 value</span></span><br><span class="line"><span class="comment"> * @return 返回类型为 Status</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">virtual</span> Status <span class="title">Put</span><span class="params">(<span class="keyword">const</span> WriteOptions&amp; options,</span></span></span><br><span class="line"><span class="function"><span class="params">                    <span class="keyword">const</span> Slice&amp; key,</span></span></span><br><span class="line"><span class="function"><span class="params">                    <span class="keyword">const</span> Slice&amp; value)</span> </span>= <span class="number">0</span>;</span><br></pre></td></tr></table></figure>
 
 <p>该方法主要依赖 <code>leveldb::DBImpl::Write</code> 实现.</p>
@@ -317,11 +313,11 @@
 <p>当执行写入工作时(被前一个执行写入并完成工作的 writer 唤醒了), 首先确认是否为本次该 writer 写操作分配新的 log 文件, 如果需要则分配. 因为该 writer 成为队首 writer 了, 则它负责将队列前面若干 writers 的 batch 合并为一个(该工作由<code>leveldb::DBImpl::BuildBatchGroup</code> 负责完成), 注意, 被合并的 writers 不出队(待合并写入完成再出队, 具体见后面描述), 所以写 log 期间队首 writer 不变. 具体写入工作由 <code>leveldb::log::Writer::AddRecord</code> 负责, 就是将数据序列化为 record 写入 log 文件. 如果追加 log 文件成功,则将被追加的数据插入到内存中的 memtable 中. 待写入完毕, 该 writer 将参与前述 batch group 写入 log 文件的 writer 都取出来并设置为写入完成, 即将其出队, 将其 done 置为 true, 同时向其发送信号将其唤醒, 被唤醒后它会检查其 done 标识并返回. 最后唤醒队首 writer 执行下一个合并写入.</p>
 <h3><span id="get">Get</span></h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 查询键为 key 的数据项, 如果存在则将对应的 value 地址存储到第二个参数中. </span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * 如果 key 不存在, 第二个参数不变, 返回值为 IsNotFound Status. </span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * @param options 本次读操作对应的配置参数</span></span><br><span class="line"><span class="comment"> * @param key 要查询的 key, Slice 引用类型</span></span><br><span class="line"><span class="comment"> * @param value 存储与 key 对应的值的指针, string 指针类型</span></span><br><span class="line"><span class="comment"> * @return</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">virtual</span> Status <span class="title">Get</span><span class="params">(<span class="keyword">const</span> ReadOptions&amp; options,</span></span></span><br><span class="line"><span class="function"><span class="params">                    <span class="keyword">const</span> Slice&amp; key, <span class="built_in">std</span>::<span class="built_in">string</span>* value)</span> </span>= <span class="number">0</span>;</span><br></pre></td></tr></table></figure>
 
-<ul>
-<li>1 先查询当前在用的 memtable(具体工作由 <code>leveldb::MemTable::Get</code> 负责, 本质就是 SkipList 查询, 速度很快)</li>
-<li>2 如果没有则查询正在转换为 sorted table 的 memtable 中寻找</li>
-<li>3 如果没有则我们在磁盘上采用从底向上 level-by-level 的寻找目标 key. </li>
-</ul>
+<ol>
+<li>先查询当前在用的 memtable(具体工作由 <code>leveldb::MemTable::Get</code> 负责, 本质就是 SkipList 查询, 速度很快)</li>
+<li>如果没有则查询正在转换为 sorted table 的 memtable 中寻找</li>
+<li>如果没有则我们在磁盘上采用从底向上 level-by-level 的寻找目标 key. </li>
+</ol>
 <p>针对上述第 3 步, 具体由 db VersionSet 的当前 Version 负责, 因为该结构保存了 db 当前最新的 level 架构信息, 即每个 level 及其对应的文件列表和每个文件的键范围. 对应方法为 <code>leveldb::Version::Get</code>, 具体为:</p>
 <ul>
 <li>从低 level 向高 level 寻找. 由于 level 越低数据越新, 因此, 当我们在一个较低的 level 找到数据的时候, 不用在更高的 levels 找了.</li>
@@ -410,16 +406,10 @@ LAST == 4</code></pre>
 <li>在估计出来的边界处做分割(比如为 mapreduce 应用)变得简单了: 找到下个 block 的边界, 如果起始是 MIDDLE 或者 LAST 类型的 record, 则跳过直到我们找到一个 FULL 或者 FIRST record 为止, 就可以在此处做分割, 一部分投递到一个计算任务, 另一部分(直到分界处)投递到另一个计算任务.</li>
 </ol>
 <h4><span id="log-文件的缺点并不是">log 文件的缺点(并不是)</span></h4><p>log 文件格式的缺点: </p>
-<ul>
-<li><ol>
+<ol>
 <li>没有打包小的 records. 通过增加一个新的 record 类型可以解决这个问题, 所以这个问题是当前实现的不足而不是 log 格式的缺陷. </li>
-</ol>
-</li>
-<li><ol start="2">
 <li>没有压缩. 同样地, 这个也可以通过增加一个新的 record 类型来解决. </li>
 </ol>
-</li>
-</ul>
 <h4><span id="log-文件主要接口">log 文件主要接口</span></h4><p>下面介绍下 log 文件的读写实现.</p>
 <h5><span id="写-log">写 log</span></h5><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">leveldb::Status leveldb::<span class="built_in">log</span>::Writer::AddRecord(<span class="keyword">const</span> leveldb::Slice &amp;slice)</span><br></pre></td></tr></table></figure>
 
@@ -431,15 +421,15 @@ LAST == 4</code></pre>
 <h4><span id="与-log-文件配套的-memtable">与 log 文件配套的 memtable</span></h4><p>memtable 可以看作是 log 文件的内存形式, 但是格式不同.</p>
 <h5><span id="结构">结构</span></h5><p>它的本质就是一个 SkipList.</p>
 <h5><span id="用途">用途</span></h5><p>我们已经知道, 每个 log 文件在内存有一个对应的 memtable, 它和正在压实的 memtable 以及磁盘上的各个 level 包含的文件构成了数据全集. 所以当调用 DB 的 <code>Get</code> 方法查询某个 key 的时候, 具体步骤是这样的(具体实现位于 <code>leveldb::Status leveldb::Version::Get(const leveldb::ReadOptions &amp;options, const leveldb::LookupKey &amp;k, string *value, leveldb::Version::GetStats *stats)</code>, DB 的 <code>Get</code> 方法会调用前述实现.):</p>
-<ul>
-<li>1 先查询当前在用的 memtable, 查到返回, 未查到下一步</li>
-<li>2 查询正在转换为 sorted table 的 memtable 中寻找, 查到返回, 未查到下一步 </li>
-<li>3 在磁盘上采用从底向上 level-by-level 的寻找目标 key. <ul>
+<ol>
+<li>先查询当前在用的 memtable, 查到返回, 未查到下一步</li>
+<li>查询正在转换为 sorted table 的 memtable 中寻找, 查到返回, 未查到下一步 </li>
+<li>在磁盘上采用从底向上 level-by-level 的寻找目标 key. <ul>
 <li>由于 level 越低数据越新, 因此, 当我们在一个较低的 level 找到数据的时候, 不用在更高的 levels 找了.</li>
 <li>由于 level-0 文件之间可能存在重叠, 而且针对同一个 key, 后产生的文件数据更新所以先将包含 key 的文件找出来按照文件号从大到小(对应文件从新到老)排序查找 key; 针对 level-1 及其以上 level, 由于每个 level 内文件之间不存在重叠, 于是在每个 level 中直接采用二分查找定位 key.</li>
 </ul>
 </li>
-</ul>
+</ol>
 <h3><span id="sorted-table-文件">sorted table 文件</span></h3><p>sorted table(*.ldb) 文件就是 leveldb 的数据库文件了. 每一个 level 都对应一组有序的 sorted table 文件. 每个 sorted table 文件保存着按 key 排序的一系列数据项. 每个数据项要么是一个与某个 key 对应的 value, 要么是某个 key 的删除标记. (删除标记其它地方又叫墓碑消息, 用于声明时间线上在此之前的同名 key 对应的记录都失效了, 后台线程负责对这类记录进行压实, 即拷贝到另一个文件时物理删除这类记录.). 注意, leveldb 是一个 append 类型而非 MySQL 那种 in-place 修改的数据库.</p>
 <p>sorted tables 文件被组织成一系列 levels. 一个 log 文件生成的对应 sorted table 文件会被放到一个特殊的 <strong>young</strong> level(也被叫做 level-0). 当 young 文件数目超过某个阈值(当前是 4), 全部 young 文件就会和 level-1 与之重叠的全部文件进行合并, 进而生成一系列新的 level-1 文件(每 2MB 数据就会生成一个新的 level-1 文件). </p>
 <p>level-0 的文件之间可能存在键区间重叠, 但是其它每层 level 内部文件之间是不存在重叠情况的. 我们下面来说下 level-1 及其以上的 level 的文件如何合并. 当 level-L (L &gt;= 1)的文件总大小超过了 $10^L$ MB(即 level-1 超过了 10MB, level-2 超过了 100MB, …), 此时一个 level-L 文件就会和 level-(L+1) 中与自己键区间重叠的全部文件进行合并, 然后为 level-(L+1) 生成一组新的文件. 这些合并操作可以实现将 young level 中新的 updates 一点一点搬到最高的那层 level, 这个迁移过程使用的都是块读写(最小化了昂贵的 seek 操作的时间消耗). </p>
@@ -463,44 +453,35 @@ offset: varint64
 size:   varint64</code></pre>
 <p>如果你没用过 protobuf 之类的二进制编解码协议, 可能对 varint64 不太熟悉, 可以参考这里 <a target="_blank" rel="noopener" href="https://developers.google.com/protocol-buffers/docs/encoding#varints">varints</a> 了解一下. 本质就是对数据类型进行(二次)无损编码, 使其更加紧凑, 可以节省带宽或者存储空间.</p>
 <p>下面详细解释下上面提到的文件格式: </p>
-<ul>
-<li><ol>
-<li>文件里存的是一系列 key/value 对, 而且按照 key 排过序了, 同时被划分到了多个 blocks 中. 这些 blocks 从文件起始位置开始一个接一个. 每个 data block 组织形式在 <code>block_builder.cc</code> 定义, 用户可以选择对 data block 进行压缩. </li>
-</ol>
+<ol>
+<li><p>文件里存的是一系列 key/value 对, 而且按照 key 排过序了, 同时被划分到了多个 blocks 中. 这些 blocks 从文件起始位置开始一个接一个. 每个 data block 组织形式在 <code>block_builder.cc</code> 定义, 用户可以选择对 data block 进行压缩(注意前面讲 log 文件的时候说不支持对 block 进行压缩是 log 文件目前的缺点). </p>
 </li>
-<li><ol start="2">
-<li>全部 data blocks 之后是一组 meta blocks. 已经支持的 meta block 类型见下面描述, 将来可能会加入更多的类型. 每个 meta block 组织形式在 <code>block_builder.cc</code> 定义, 同样地, 用户可以选择对其进行压缩. </li>
-</ol>
+<li><p>全部 data blocks 之后是一组 meta blocks. 已经支持的 meta block 类型见下面描述, 将来可能会加入更多的类型. 每个 meta block 组织形式在 <code>block_builder.cc</code> 定义, 同样地, 用户可以选择对其进行压缩. </p>
 </li>
-<li><ol start="3">
-<li>全部 meta blocks 后是一个 metaindex block. 每个 meta block 都有一个对应的 entry 保存在该部分, 其中 key 就是某个 meta block 的名字, value 是一个指向该 meta block 的 BlockHandle. </li>
-</ol>
+<li><p>全部 meta blocks 后是一个 metaindex block. 每个 meta block 都有一个对应的 entry 保存在该部分, 其中 key 就是某个 meta block 的名字, value 是一个指向该 meta block 的 BlockHandle. </p>
 </li>
-<li><ol start="4">
-<li>紧随 metaindex block 之后是一个 index block. 针对每个 data block 都有一个对应的 entry 包含在该部分, 其中 key 为大于等于对应 data block 最后(也是最大的, 因为排序过了)一个 key 同时小于接下来的 data block 第一个 key 的字符串; value 是指向一个对应 data block 的 BlockHandle. </li>
-</ol>
+<li><p>紧随 metaindex block 之后是一个 index block. 针对每个 data block 都有一个对应的 entry 包含在该部分, 其中 key 为大于等于对应 data block 最后(也是最大的, 因为排序过了)一个 key 同时小于接下来的 data block 第一个 key 的字符串; value 是指向一个对应 data block 的 BlockHandle. </p>
 </li>
-<li><ol start="5">
-<li><p>在每个文件的末尾是一个固定长度的 footer, 固定长度的好处就是读取文件时, 用 file size 减去这个固定长度就能定位到 footer 起始偏移, 然后就可以解析了. 它包含了一个指向 metaindex block 的 BlockHandle 和一个指向 index block 的 BlockHandle 以及一个 magic number. 具体格式如下:</p>
-<pre><code> // 指向 metaindex 的 BlockHandle
- metaindex_handle: char[p];     
- // 指向 index 的 BlockHandle
- index_handle:     char[q];     
- // 用于维持固定长度的 padding 0,
- // (其中 40 == 2*BlockHandle::kMaxEncodedLength)
- padding:          char[40-p-q];
- // 具体内容为 0xdb4775248b80fb57 (小端字节序)
- magic:            fixed64;     </code></pre>
+<li><p>在每个文件的末尾是一个固定长度的 footer, 它非常关键, 它虽然位于文件尾部却是文件的入口. 固定长度的好处就是读取文件时, 用 file size 减去这个固定长度就能定位到 footer 起始偏移, 然后就可以解析了. 它包含了一个指向 metaindex block 的 BlockHandle 和一个指向 index block 的 BlockHandle 以及一个 magic number. 具体格式如下:</p>
+<pre><code>   // 指向 metaindex 的 BlockHandle
+   metaindex_handle: char[p];     
+   // 指向 index 的 BlockHandle
+   index_handle:     char[q];     
+   // 用于维持固定长度的 padding 0,
+   // (其中 40 == 2*BlockHandle::kMaxEncodedLength)
+   padding:          char[40-p-q];
+   // 具体内容为 0xdb4775248b80fb57 (小端字节序)
+   magic:            fixed64;     </code></pre>
 </li>
 </ol>
-</li>
-</ul>
-<h4><span id="filter-meta-block">“filter” Meta Block</span></h4><p>如果打开(创建)数据库的时候指定了一个 <code>FilterPolicy</code>, 那么一个 filter block 就会被存储到每个 sstable 中. metaindex block 包含了一个 entry, 它是从 <code>filter.&lt;Name&gt;</code> 到 filter block 的 BlockHandle 的映射. 其中, <code>&lt;Name&gt;</code> 是一个由 filter policy 的 <code>Name()</code>方法返回的字符串. </p>
+<p>注意 footer 存的都是 index-of-xx, 找到 index 就可以找到 xx 了.</p>
+<h4><span id="filter-meta-block">“filter” Meta Block</span></h4><p>目前 sstable 只有一种类型的 meta block, 那就是 filter.</p>
+<p>如果打开(创建)数据库的时候指定了一个 <code>FilterPolicy</code>, 那么一个 filter block 就会被存储到每个 sstable 中. metaindex block 包含了一个 entry, 它是从 <code>filter.&lt;Name&gt;</code> 到 filter block 的 BlockHandle 的映射. 其中, <code>&lt;Name&gt;</code> 是一个由 filter policy 的 <code>Name()</code>方法返回的字符串. </p>
 <p>filter block 保存着一系列 filters, 其中 filter i 包含了方法</p>
 <pre><code class="c++">void leveldb::FilterPolicy::CreateFilter(const Slice *keys, int n, string *dst) const</code></pre>
 <p>针对入参 keys 的计算结果(存储在输出型参数 <code>dst</code>). 参数 keys 属于一个 data block, 该 data block 对应的文件偏移量落在下面的范围里: </p>
 <pre><code>[ i*base ... (i+1)*base-1 ]</code></pre>
-<p>当前, 上面的 base 是 2KB. 举个例子, 如果 block X 和 block Y 起始地址落在 <code>[ 0KB .. 2KB ]</code> 范围内, 则 X 和 Y 中的全部 keys 将会在调用 <code>FilterPolicy::CreateFilter()</code> 时被转换为一个 filter, 然后这个 filter 会作为一个(为啥是第一个, 因为 X、Y 起始地址落在第一个地址空间 <code>[ 0KB .. 2KB ]</code> 里) filter 被保存在 filter block 中. (用大白话再说一遍, 每个 FilterPolicy 都有一个唯一的名字, 在 metaindex block 通过这个名字就能找到对应的 filter block 了. 而 filter block 存的就是用这个 FilterPolicy 构造的一系列 filters, 为啥是一系列呢？因为 data blocks 太多了, 所以分了区间, 每几个 data blocks 对应一个 filter, 具体几个根据上面那个带 base 的公式来算. 再说说 filter 是怎么回事. data block 保存的不是键值对构成的 records 嘛, 根据前面说的键区间限制, 把每几个 blocks 的全部键根据某个 FilterPolicy 算一下就得到了一个 filter, 然后把这个 filter 保存到了 filter block 的第 i 个位置. )</p>
+<p>当前, 上面的 base 是 2KB. 举个例子, 如果 block X 和 block Y 起始地址落在 <code>[ 0KB .. 2KB ]</code> 范围内, 则 X 和 Y 中的全部 keys 将会在调用 <code>FilterPolicy::CreateFilter()</code> 时被转换为一个 filter, 然后这个 filter 会作为第一个(为啥是第一个, 因为 X、Y 起始地址落在第一个地址空间 <code>[ 0KB .. 2KB ]</code> 里) filter 被保存在 filter block 中. (用大白话再说一遍, 每个 FilterPolicy 都有一个唯一的名字, 在 metaindex block 通过这个名字就能找到对应的 filter block 了. 而 filter block 存的就是用这个 FilterPolicy 构造的一系列 filters, 为啥是一系列呢？因为 data blocks 太多了, 所以分了区间, 每几个 data blocks 对应一个 filter, 具体几个根据上面那个带 base 的公式来算. 再说说 filter 是怎么回事. data block 保存的不是键值对构成的 records 嘛, 根据前面说的键区间限制, 把每几个 blocks 的全部键根据某个 FilterPolicy 算一下就得到了一个 filter, 然后把这个 filter 保存到了 filter block 的第 i 个位置. )</p>
 <p>具有 N 个 filter 的 filter block 格式如下: </p>
 <pre><code>[filter 0]
 [filter 1]
@@ -678,7 +659,7 @@ dbname/[0-9]+.(log|sst|ldb)</code></pre>
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-count">9</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -710,7 +691,7 @@ dbname/[0-9]+.(log|sst|ldb)</code></pre>
 <div class="copyright">
   
   &copy; 
-  <span itemprop="copyrightYear">2020</span>
+  <span itemprop="copyrightYear">2021</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>

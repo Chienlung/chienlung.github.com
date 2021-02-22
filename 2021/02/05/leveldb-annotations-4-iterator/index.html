@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.1.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"chienlungcheung.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="1 迭代器接口设计 1.1 迭代器实现一例   2 双层迭代器设计    迭代器的设计和实现是 leveldb 的精华之一. 前几篇文章都多少提到了迭代器的使用, 本篇让我们深入一下迭代器的设计实现, 也为接下来的几篇剖析打下基础. 1 迭代器接口设计迭代器接口类为 leveldb::Iterator, 位于 include&#x2F;leveldb&#x2F;iterator.h 和 table&#x2F;iterat">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Leveldb 源码详解系列之四: 迭代器设计与实现">
+<meta property="og:url" content="https://chienlungcheung.github.io/2021/02/05/leveldb-annotations-4-iterator/index.html">
+<meta property="og:site_name" content="programatrix">
+<meta property="og:description" content="1 迭代器接口设计 1.1 迭代器实现一例   2 双层迭代器设计    迭代器的设计和实现是 leveldb 的精华之一. 前几篇文章都多少提到了迭代器的使用, 本篇让我们深入一下迭代器的设计实现, 也为接下来的几篇剖析打下基础. 1 迭代器接口设计迭代器接口类为 leveldb::Iterator, 位于 include&#x2F;leveldb&#x2F;iterator.h 和 table&#x2F;iterat">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2021-02-05T13:53:51.000Z">
+<meta property="article:modified_time" content="2021-02-22T04:01:48.819Z">
+<meta property="article:author" content="Chienlung Cheung">
+<meta property="article:tag" content="leveldb">
+<meta property="article:tag" content="LSM-Tree">
+<meta property="article:tag" content="db">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://chienlungcheung.github.io/2021/02/05/leveldb-annotations-4-iterator/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Leveldb 源码详解系列之四: 迭代器设计与实现 | programatrix</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-177829579-1"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'UA-177829579-1');
+      }
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">programatrix</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">Be the change you wish to see in the world.</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://chienlungcheung.github.io/2021/02/05/leveldb-annotations-4-iterator/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Chienlung Cheung">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="programatrix">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Leveldb 源码详解系列之四: 迭代器设计与实现
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2021-02-05 13:53:51" itemprop="dateCreated datePublished" datetime="2021-02-05T13:53:51+00:00">2021-02-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2021-02-22 04:01:48" itemprop="dateModified" datetime="2021-02-22T04:01:48+00:00">2021-02-22</time>
+              </span>
+
+          
+  
+  <span class="post-meta-item">
+    
+      <span class="post-meta-item-icon">
+        <i class="far fa-comment"></i>
+      </span>
+      <span class="post-meta-item-text">Disqus: </span>
+    
+    <a title="disqus" href="/2021/02/05/leveldb-annotations-4-iterator/#disqus_thread" itemprop="discussionUrl">
+      <span class="post-comments-count disqus-comment-count" data-disqus-identifier="2021/02/05/leveldb-annotations-4-iterator/" itemprop="commentCount"></span>
+    </a>
+  </span>
+  
+  
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <!-- toc -->
+
+<ul>
+<li><a href="#1-%E8%BF%AD%E4%BB%A3%E5%99%A8%E6%8E%A5%E5%8F%A3%E8%AE%BE%E8%AE%A1">1 迭代器接口设计</a><ul>
+<li><a href="#11-%E8%BF%AD%E4%BB%A3%E5%99%A8%E5%AE%9E%E7%8E%B0%E4%B8%80%E4%BE%8B">1.1 迭代器实现一例</a></li>
+</ul>
+</li>
+<li><a href="#2-%E5%8F%8C%E5%B1%82%E8%BF%AD%E4%BB%A3%E5%99%A8%E8%AE%BE%E8%AE%A1">2 双层迭代器设计</a></li>
+</ul>
+<!-- tocstop -->
+
+<p>迭代器的设计和实现是 leveldb 的精华之一. 前几篇文章都多少提到了迭代器的使用, 本篇让我们深入一下迭代器的设计实现, 也为接下来的几篇剖析打下基础.</p>
+<h1><span id="1-迭代器接口设计">1 迭代器接口设计</span></h1><p>迭代器接口类为 <code>leveldb::Iterator</code>, 位于 <code>include/leveldb/iterator.h</code> 和 <code>table/iterator.cc</code>. (实现位于 table 目录, 是因为接下来要介绍的 sstable 是迭代器重度用户.)</p>
+<p>迭代器接口定义比较简洁, 主要方法为指向合法性判断, 前后移动, 定位(开头/末尾/任意), 提取数据项 key/value 等等. </p>
+<p>唯一的数据成员为清理函数列表头节点. </p>
+<p>具体如下:</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">LEVELDB_EXPORT</span> <span class="title">Iterator</span> &#123;</span></span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  Iterator();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 禁用复制构造</span></span><br><span class="line">  Iterator(<span class="keyword">const</span> Iterator&amp;) = <span class="keyword">delete</span>;</span><br><span class="line">  <span class="comment">// 禁用赋值构造</span></span><br><span class="line">  Iterator&amp; <span class="keyword">operator</span>=(<span class="keyword">const</span> Iterator&amp;) = <span class="keyword">delete</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">virtual</span> ~Iterator();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 一个迭代器要么指向 key/value 对, 要么指向非法位置.</span></span><br><span class="line">  <span class="comment">// 当且仅当第一种情况才为 valid.</span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">bool</span> <span class="title">Valid</span><span class="params">()</span> <span class="keyword">const</span> </span>= <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 将迭代器移动到数据源的第一个 key/value 对.</span></span><br><span class="line">  <span class="comment">// 当前仅当数据源不空时, 调用完该方法再调用 Valid() 为 true.</span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">SeekToFirst</span><span class="params">()</span> </span>= <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 将迭代器移动到数据源的最后一个 key/value 对.</span></span><br><span class="line">  <span class="comment">// 当前仅当数据源不空时, 调用完该方法再调用 Valid() 为 true.</span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">SeekToLast</span><span class="params">()</span> </span>= <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 将迭代器指向移动到数据源 target 位置或之后的第一个 key.</span></span><br><span class="line">  <span class="comment">// 当且仅当移动后的位置存在数据项时, 调用 Valid() 才为 true.</span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">Seek</span><span class="params">(<span class="keyword">const</span> Slice&amp; target)</span> </span>= <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"> </span><br><span class="line">  <span class="comment">// 将迭代器移动到数据源下一个数据项.</span></span><br><span class="line">  <span class="comment">// 当且仅当迭代器未指向数据源最后一个数据项时, 调用完该方法后调用 Valid() 结果为 true.</span></span><br><span class="line">  <span class="comment">// 注意: 调用该方法前提是迭代器当前指向必须 valid.</span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">Next</span><span class="params">()</span> </span>= <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 将迭代器移动到数据源前一个数据项.</span></span><br><span class="line">  <span class="comment">// 当且仅当迭代器未指向数据源第一个数据项时, 调用完该方法后调用 Valid() 结果为 true.</span></span><br><span class="line">  <span class="comment">// 注意: 调用该方法前提是迭代器当前指向必须 valid.  </span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">Prev</span><span class="params">()</span> </span>= <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 返回当前迭代器指向的数据项的 key, Slice 类型, 如果使用迭代器进行修改则会反映到</span></span><br><span class="line">  <span class="comment">// 已返回的 key 上面.</span></span><br><span class="line">  <span class="comment">// 注意: 调用该方法前提是迭代器当前执行必须 valid.</span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> Slice <span class="title">key</span><span class="params">()</span> <span class="keyword">const</span> </span>= <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 返回当前迭代器指向的数据项的 value, Slice 类型, 如果使用迭代器进行修改则会反映到</span></span><br><span class="line">  <span class="comment">// 已返回的 value 上面.</span></span><br><span class="line">  <span class="comment">// 注意: 调用该方法前提是迭代器当前执行必须 valid.</span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> Slice <span class="title">value</span><span class="params">()</span> <span class="keyword">const</span> </span>= <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 发生错误返回之; 否则返回 ok.</span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> Status <span class="title">status</span><span class="params">()</span> <span class="keyword">const</span> </span>= <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 我们允许调用方注册一个带两个参数的回调函数, 当迭代器析构时该函数会被自动调用.</span></span><br><span class="line">  <span class="keyword">using</span> CleanupFunction = <span class="keyword">void</span> (*)(<span class="keyword">void</span>* arg1, <span class="keyword">void</span>* arg2);</span><br><span class="line">  <span class="comment">// 我们允许客户端注册 CleanupFunction 类型的回调函数, 在迭代器被销毁的时候会调用它们(可以注册多个). </span></span><br><span class="line">  <span class="comment">// 注意, 跟前面的方法不同, RegisterCleanup 不是抽象的, 客户端不应该覆写他们. </span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">RegisterCleanup</span><span class="params">(CleanupFunction function, <span class="keyword">void</span>* arg1, <span class="keyword">void</span>* arg2)</span></span>;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">private</span>:</span><br><span class="line">  <span class="comment">// 清理函数被维护在一个单向链表上, 其中头节点被 inlined 到迭代器中.</span></span><br><span class="line">  <span class="comment">// 该类用于保存用户注册的清理函数, 一个清理函数对应一个该类对象, 全部对象被维护在一个单向链表上. </span></span><br><span class="line">  <span class="class"><span class="keyword">struct</span> <span class="title">CleanupNode</span> &#123;</span></span><br><span class="line">    <span class="comment">// 清理函数及其两个参数</span></span><br><span class="line">    CleanupFunction function;</span><br><span class="line">    <span class="keyword">void</span>* arg1;</span><br><span class="line">    <span class="keyword">void</span>* arg2;</span><br><span class="line">    <span class="comment">// 下个清理函数</span></span><br><span class="line">    CleanupNode* next;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 判断清理函数是否为空指针.</span></span><br><span class="line">    <span class="function"><span class="keyword">bool</span> <span class="title">IsEmpty</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> function == <span class="literal">nullptr</span>; &#125;</span><br><span class="line">    <span class="comment">// 运行调用方通过 Iterator::RegisterCleanup 注册的清理函数</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">Run</span><span class="params">()</span> </span>&#123; assert(function != <span class="literal">nullptr</span>); (*function)(arg1, arg2); &#125;</span><br><span class="line">  &#125;;</span><br><span class="line">  <span class="comment">// 清理函数列表的头节点</span></span><br><span class="line">  CleanupNode cleanup_head_;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>Iterator</code> 本身实现了三个方法, 分别是构造方法, 析构方法, 以及清理函数注册方法. 下面是非抽象方法的实现:</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 构造方法, 初始化唯一数据成员</span></span><br><span class="line">Iterator::Iterator() &#123;</span><br><span class="line">  cleanup_head_.function = <span class="literal">nullptr</span>;</span><br><span class="line">  cleanup_head_.next = <span class="literal">nullptr</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">Iterator::~Iterator() &#123;</span><br><span class="line">  <span class="comment">// 析构时调用已注册的清理函数</span></span><br><span class="line">  <span class="keyword">if</span> (!cleanup_head_.IsEmpty()) &#123;</span><br><span class="line">    <span class="comment">// 线性的, 如果在该迭代器上注册的清理函数太多了应该会影响性能, 但总要做释放操作, 时间总归省不了.</span></span><br><span class="line">    cleanup_head_.Run();</span><br><span class="line">    <span class="keyword">for</span> (CleanupNode* node = cleanup_head_.next; node != <span class="literal">nullptr</span>; ) &#123;</span><br><span class="line">      node-&gt;Run();</span><br><span class="line">      CleanupNode* next_node = node-&gt;next;</span><br><span class="line">      <span class="keyword">delete</span> node;</span><br><span class="line">      node = next_node;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 将用户定制的清理函数挂到单向链表上, 待迭代器销毁时挨个调用(见 ~Iterator()). </span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">Iterator::RegisterCleanup</span><span class="params">(CleanupFunction func, <span class="keyword">void</span>* arg1, <span class="keyword">void</span>* arg2)</span> </span>&#123;</span><br><span class="line">  assert(func != <span class="literal">nullptr</span>);</span><br><span class="line">  CleanupNode* node;</span><br><span class="line">  <span class="keyword">if</span> (cleanup_head_.IsEmpty()) &#123;</span><br><span class="line">    node = &amp;cleanup_head_;</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    node = <span class="keyword">new</span> CleanupNode();</span><br><span class="line">    <span class="comment">// 新节点插到 head 后面</span></span><br><span class="line">    node-&gt;next = cleanup_head_.next;</span><br><span class="line">    cleanup_head_.next = node;</span><br><span class="line">  &#125;</span><br><span class="line">  node-&gt;function = func;</span><br><span class="line">  node-&gt;arg1 = arg1;</span><br><span class="line">  node-&gt;arg2 = arg2;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2><span id="11-迭代器实现一例">1.1 迭代器实现一例</span></h2><p>下面以 sstable 的 block 为例示意一下迭代器的实现. 关键部分就是将 block 作为迭代器数据源, 基于 block 构造和查询原理实现迭代器的前后移动, 定位等操作. 里面涉及了一些成员看不懂也不用管, 在介绍 sstable 时会解释.</p>
+<p>具体类为 <code>leveldb::Block::Iter</code>, 代码位于 <code>table/block.cc</code> 文件:</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Block</span>:</span>:Iter : <span class="keyword">public</span> Iterator &#123;</span><br><span class="line"> <span class="keyword">private</span>:</span><br><span class="line">  <span class="comment">// 迭代时使用的比较器</span></span><br><span class="line">  <span class="keyword">const</span> Comparator* <span class="keyword">const</span> comparator_;</span><br><span class="line">  <span class="comment">// 指向 block 的指针</span></span><br><span class="line">  <span class="keyword">const</span> <span class="keyword">char</span>* <span class="keyword">const</span> data_;</span><br><span class="line">  <span class="comment">// block 的 restart 数组</span></span><br><span class="line">  <span class="comment">// (每个元素 32 位固定长度, 保存着每个 restart 在 block 里的偏移量)</span></span><br><span class="line">  <span class="comment">// 在 block 里的起始偏移量</span></span><br><span class="line">  <span class="keyword">uint32_t</span> <span class="keyword">const</span> restarts_;</span><br><span class="line">  <span class="comment">// restart 数组元素个数(每个元素都是 uint32_t 类型)</span></span><br><span class="line">  <span class="keyword">uint32_t</span> <span class="keyword">const</span> num_restarts_;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// current_ 表示当前数据项在 data_ 里的偏移量, </span></span><br><span class="line">  <span class="comment">// 如果迭代器无效则该值大于等于 restarts_ </span></span><br><span class="line">  <span class="comment">// 即 restart array 在 block 的起始偏移量</span></span><br><span class="line">  <span class="comment">// (restart array 位于 block 后部, 数据项在 block 前半部分)</span></span><br><span class="line">  <span class="keyword">uint32_t</span> current_;</span><br><span class="line">  <span class="comment">// restart block 的索引值, current_ 指向的数据项落在该 block</span></span><br><span class="line">  <span class="keyword">uint32_t</span> restart_index_;</span><br><span class="line">  <span class="comment">// current_ 所指数据项的 key</span></span><br><span class="line">  <span class="built_in">std</span>::<span class="built_in">string</span> key_; </span><br><span class="line">  <span class="comment">// current_ 所指数据项的 value</span></span><br><span class="line">  Slice value_; </span><br><span class="line">  <span class="comment">// 当前迭代器对应的状态</span></span><br><span class="line">  Status status_;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">inline</span> <span class="keyword">int</span> <span class="title">Compare</span><span class="params">(<span class="keyword">const</span> Slice&amp; a, <span class="keyword">const</span> Slice&amp; b)</span> <span class="keyword">const</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> comparator_-&gt;Compare(a, b);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 返回 current_ 所指数据项的下一个数据项的偏移量. </span></span><br><span class="line">  <span class="comment">// 根据 Block 布局我们可以知道, value 位于每个数据项最后, </span></span><br><span class="line">  <span class="comment">// 所以 value 之后第一个字节即为下一个数据项起始位置. </span></span><br><span class="line">  <span class="function"><span class="keyword">inline</span> <span class="keyword">uint32_t</span> <span class="title">NextEntryOffset</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> (value_.data() + value_.size()) - data_;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 返回索引值为 index 的 restart 在 block 中的起始偏移量</span></span><br><span class="line">  <span class="function"><span class="keyword">uint32_t</span> <span class="title">GetRestartPoint</span><span class="params">(<span class="keyword">uint32_t</span> index)</span> </span>&#123;</span><br><span class="line">    assert(index &lt; num_restarts_);</span><br><span class="line">    <span class="keyword">return</span> DecodeFixed32(data_ + restarts_ + index * <span class="keyword">sizeof</span>(<span class="keyword">uint32_t</span>));</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 将迭代器移动到索引值为 index 的 restart 对应的偏移量位置.</span></span><br><span class="line">  <span class="comment">// 注意, 此方法只调整了 current_ 对应的 value_, 此时两者不再保持一致; </span></span><br><span class="line">  <span class="comment">// current_ 与 key_ 仍然保持一致性. </span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">SeekToRestartPoint</span><span class="params">(<span class="keyword">uint32_t</span> index)</span> </span>&#123;</span><br><span class="line">    key_.clear();</span><br><span class="line">    restart_index_ = index;</span><br><span class="line">    <span class="comment">// current_ 和 key_ 指向后续会被 ParseNextKey() 校正.</span></span><br><span class="line">    <span class="comment">// ParseNextKey() 从 value_ 末尾开始, 所以这里需要设置好, 为何从 value_ </span></span><br><span class="line">    <span class="comment">// 末尾开始呢? 根据 Block 布局我们可以知道, value 位于每个数据项最后, </span></span><br><span class="line">    <span class="comment">// 所以 value 之后第一个字节即为下一个数据项起始位置.</span></span><br><span class="line">    <span class="keyword">uint32_t</span> offset = GetRestartPoint(index);</span><br><span class="line">    <span class="comment">// 将 value 数据起始地址设置为 offset 对应的 restart 起始位置, </span></span><br><span class="line">    <span class="comment">// value_ 这么设置是为了方便 ParseNextKey().</span></span><br><span class="line">    value_ = Slice(data_ + offset, <span class="number">0</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">public</span>:</span><br><span class="line">  Iter(<span class="keyword">const</span> Comparator* comparator,</span><br><span class="line">       <span class="keyword">const</span> <span class="keyword">char</span>* data,</span><br><span class="line">       <span class="keyword">uint32_t</span> restarts,</span><br><span class="line">       <span class="keyword">uint32_t</span> num_restarts)</span><br><span class="line">      : comparator_(comparator),</span><br><span class="line">        data_(data),</span><br><span class="line">        restarts_(restarts),</span><br><span class="line">        num_restarts_(num_restarts),</span><br><span class="line">        current_(restarts_),</span><br><span class="line">        restart_index_(num_restarts_) &#123;</span><br><span class="line">    assert(num_restarts_ &gt; <span class="number">0</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">bool</span> <span class="title">Valid</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> current_ &lt; restarts_; &#125;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> Status <span class="title">status</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> status_; &#125;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> Slice <span class="title">key</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123;</span><br><span class="line">    assert(Valid());</span><br><span class="line">    <span class="keyword">return</span> key_;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> Slice <span class="title">value</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123;</span><br><span class="line">    assert(Valid());</span><br><span class="line">    <span class="keyword">return</span> value_;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">Next</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 向后移动前提是当前指向合法</span></span><br><span class="line">    assert(Valid());</span><br><span class="line">    ParseNextKey();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 将 current 指向当前数据项前一个数据项. </span></span><br><span class="line">  <span class="comment">// 如果 current 指向的已经是 block 第 0 个数据项, 则无须移动了; </span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">Prev</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 向前移动前提是当前指向合法</span></span><br><span class="line">    assert(Valid());</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 倒着扫描, 直到 current_ 之前的一个 restart point.</span></span><br><span class="line">    <span class="comment">// current_ 大于等于所处 restart 段起始地址, 下面要做的</span></span><br><span class="line">    <span class="comment">// 是寻找 current_ 之前的一个 restart point. </span></span><br><span class="line">    <span class="comment">// 把 current_ 当前取值作为原点.</span></span><br><span class="line">    <span class="keyword">const</span> <span class="keyword">uint32_t</span> original = current_;</span><br><span class="line">    <span class="comment">// 下面循环干一件事, 定位 current_ 前一个数据项, 具体分两种情况：</span></span><br><span class="line">    <span class="comment">// - 如果 current_ 大于所处 restart 段起始地址, 不进行循环, </span></span><br><span class="line">    <span class="comment">//   到下面去直接定位 current_ 前一个数据项即可.</span></span><br><span class="line">    <span class="comment">// - 如果 current_ 等于所处 restart 段起始地址, </span></span><br><span class="line">    <span class="comment">//    - 如果当前 restart 不是 block 的首个 restart, </span></span><br><span class="line">    <span class="comment">//      则 current_ 前一个数据项肯定位于前一个 restart 最后一个位置</span></span><br><span class="line">    <span class="comment">//    - 如果当前 restart 是 block 的首个 restart, </span></span><br><span class="line">    <span class="comment">//      则 current_ 就是 block 首个数据项, 所以没有所谓前一个数据项了</span></span><br><span class="line">    <span class="comment">// - 没有其它情况. </span></span><br><span class="line">    <span class="comment">// 循环能够执行的唯一条件就是相等</span></span><br><span class="line">    <span class="keyword">while</span> (GetRestartPoint(restart_index_) &gt;= original) &#123; </span><br><span class="line">      <span class="comment">// 倒到开头的 restart point 了, 没法再向前倒了, 也就是没有 pre 了.</span></span><br><span class="line">      <span class="keyword">if</span> (restart_index_ == <span class="number">0</span>) &#123; </span><br><span class="line">        <span class="comment">// current_ 置为同 restarts_, </span></span><br><span class="line">        <span class="comment">// 即使得它位于 block 首个 restart 的首个数据项处.</span></span><br><span class="line">        current_ = restarts_;</span><br><span class="line">        <span class="comment">// 将 restart_index_ 置为 restart point 个数,</span></span><br><span class="line">        <span class="comment">// 这个索引是越界的.</span></span><br><span class="line">        restart_index_ = num_restarts_;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="comment">// 倒车, 请注意.</span></span><br><span class="line">      restart_index_--;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 粗粒度移动, 即先将 current_ 移动到指定 restart 分段</span></span><br><span class="line">    SeekToRestartPoint(restart_index_);</span><br><span class="line">    <span class="keyword">do</span> &#123;</span><br><span class="line">      <span class="comment">// 细粒度移动, 将 current_ 移动到 original (current_ 移动之前的值)的前一个数据项</span></span><br><span class="line">    &#125; <span class="keyword">while</span> (ParseNextKey() &amp;&amp; NextEntryOffset() &lt; original);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 寻找 block 中第一个 key 大于等于 target 的数据项. </span></span><br><span class="line">  <span class="comment">// 先通过二分法在 restart 段级定位查找目标段, 存在</span></span><br><span class="line">  <span class="comment">// key &lt; target 且是最后一个 restart 段; </span></span><br><span class="line">  <span class="comment">// 然后在目标段进行线性查找找到第一个 key 大约等于 target 的数据项.</span></span><br><span class="line">  <span class="comment">// 如果存在则 current_ 指向该目标数据项; 否则 current_ 指向</span></span><br><span class="line">  <span class="comment">// 一个非法数据项. </span></span><br><span class="line">  <span class="comment">// 调用者需要检查返回结果以确认是否找到了. </span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">Seek</span><span class="params">(<span class="keyword">const</span> Slice&amp; target)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 在 restart array 中进行二分查找, 找到最后一个</span></span><br><span class="line">    <span class="comment">// 存在 key 小于 target 的 restart, 注意是小于, </span></span><br><span class="line">    <span class="comment">// 这决定了后面二分查找时比较逻辑. </span></span><br><span class="line">    <span class="keyword">uint32_t</span> left = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">uint32_t</span> right = num_restarts_ - <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">while</span> (left &lt; right) &#123;</span><br><span class="line">      <span class="keyword">uint32_t</span> mid = (left + right + <span class="number">1</span>) / <span class="number">2</span>;</span><br><span class="line">      <span class="keyword">uint32_t</span> region_offset = GetRestartPoint(mid);</span><br><span class="line">      <span class="keyword">uint32_t</span> shared, non_shared, value_length;</span><br><span class="line">      <span class="keyword">const</span> <span class="keyword">char</span>* key_ptr = DecodeEntry(data_ + region_offset,</span><br><span class="line">                                        data_ + restarts_,</span><br><span class="line">                                        &amp;shared, &amp;non_shared, &amp;value_length);</span><br><span class="line">      <span class="comment">// 注意, 在 block 中, 每个位于 restart 起始处的数据项的 key 肯定</span></span><br><span class="line">      <span class="comment">// 是没有做过前缀压缩的, 所以 shared 肯定为 0.</span></span><br><span class="line">      <span class="comment">// 同时要注意, 这是异常情况, 不属于循环不变式的成立的条件. </span></span><br><span class="line">      <span class="keyword">if</span> (key_ptr == <span class="literal">nullptr</span> || (shared != <span class="number">0</span>)) &#123;</span><br><span class="line">        CorruptionError();</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="function">Slice <span class="title">mid_key</span><span class="params">(key_ptr, non_shared)</span></span>;</span><br><span class="line">      <span class="comment">// 因为 block 中 key 都是递增排列的, 所以每个 restart </span></span><br><span class="line">      <span class="comment">// 段位于 restart 首位置的那个 key 肯定是所在段最小的. </span></span><br><span class="line">      <span class="comment">// 如果最后存在这样的 restart, 肯定是由 left 指向：</span></span><br><span class="line">      <span class="comment">// - 因为 left 右移的条件是远小于 target</span></span><br><span class="line">      <span class="comment">// - 因为 right 左移的条件是大于等于 target</span></span><br><span class="line">      <span class="keyword">if</span> (Compare(mid_key, target) &lt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="comment">// Key at &quot;mid&quot; is smaller than &quot;target&quot;.  Therefore all</span></span><br><span class="line">        <span class="comment">// blocks before &quot;mid&quot; are uninteresting.</span></span><br><span class="line">        left = mid;</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// Key at &quot;mid&quot; is &gt;= &quot;target&quot;.  Therefore all blocks at or</span></span><br><span class="line">        <span class="comment">// after &quot;mid&quot; are uninteresting.</span></span><br><span class="line">        right = mid - <span class="number">1</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 即使初始 left == right 也会走到这</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 定位到目标 restart 段, 为下面线性查找打基础</span></span><br><span class="line">    SeekToRestartPoint(left);</span><br><span class="line">    <span class="comment">// 定位到 left 指向的 restart 段以后, 挨个 key 进行比较,</span></span><br><span class="line">    <span class="comment">// 寻找第一个大于等于 target 的 key</span></span><br><span class="line">    <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">      <span class="keyword">if</span> (!ParseNextKey()) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> (Compare(key_, target) &gt;= <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 将迭代器移动到 block 第一个数据项</span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">SeekToFirst</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 定位到第一个 restart 段</span></span><br><span class="line">    SeekToRestartPoint(<span class="number">0</span>);</span><br><span class="line">    <span class="comment">// 在之前基础上定位到第一个数据项</span></span><br><span class="line">    ParseNextKey();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 将迭代器移动到 block 最后一个数据项</span></span><br><span class="line">  <span class="function"><span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">SeekToLast</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 定位到最后一个 restart 段</span></span><br><span class="line">    SeekToRestartPoint(num_restarts_ - <span class="number">1</span>);</span><br><span class="line">    <span class="comment">// 在之前基础上定位到最后一个数据项</span></span><br><span class="line">    <span class="keyword">while</span> (ParseNextKey() &amp;&amp; NextEntryOffset() &lt; restarts_) &#123;</span><br><span class="line">      <span class="comment">// Keep skipping</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">private</span>:</span><br><span class="line">  <span class="comment">// 如果出错, 则将各个成员置为非法值</span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">CorruptionError</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    current_ = restarts_;</span><br><span class="line">    restart_index_ = num_restarts_;</span><br><span class="line">    status_ = Status::Corruption(<span class="string">&quot;bad entry in block&quot;</span>);</span><br><span class="line">    key_.clear();</span><br><span class="line">    value_.clear();</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 将 current_, key_, value_ 指向下一个数据项的</span></span><br><span class="line">  <span class="comment">// 起始偏移量、key 部分、value 部分, 同时保持</span></span><br><span class="line">  <span class="comment">// restart_index_ 与 current_ 新位置所处 restart 段一致. </span></span><br><span class="line">  <span class="function"><span class="keyword">bool</span> <span class="title">ParseNextKey</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">// current_ 指向接下来的数据项</span></span><br><span class="line">    current_ = NextEntryOffset(); </span><br><span class="line">    <span class="keyword">const</span> <span class="keyword">char</span>* p = data_ + current_;</span><br><span class="line">    <span class="comment">// 数据部分之后紧接着就是 restart</span></span><br><span class="line">    <span class="keyword">const</span> <span class="keyword">char</span>* limit = data_ + restarts_; </span><br><span class="line">    <span class="keyword">if</span> (p &gt;= limit) &#123;</span><br><span class="line">      <span class="comment">// 数据部分到头了, 返回 false</span></span><br><span class="line">      current_ = restarts_;</span><br><span class="line">      restart_index_ = num_restarts_;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 解码下个数据项</span></span><br><span class="line">    <span class="keyword">uint32_t</span> shared, non_shared, value_length;</span><br><span class="line">    p = DecodeEntry(p, limit, &amp;shared, &amp;non_shared, &amp;value_length);</span><br><span class="line">    <span class="comment">// key_ 保存的还是前一个数据项的 key, </span></span><br><span class="line">    <span class="comment">// 而大小必然不小于接下来的数据项的 key 与其公共前缀部分大小</span></span><br><span class="line">    <span class="keyword">if</span> (p == <span class="literal">nullptr</span> || key_.size() &lt; shared) &#123;</span><br><span class="line">      CorruptionError();</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="comment">// 保留 key_ 与 key 公共前缀部分</span></span><br><span class="line">      key_.resize(shared); </span><br><span class="line">      <span class="comment">// 将当前数据项 key 的非公共部分追加进来, 得到一个完整的 key</span></span><br><span class="line">      key_.append(p, non_shared); </span><br><span class="line">      <span class="comment">// 当前数据项的 value 部分. 到此为止, </span></span><br><span class="line">      <span class="comment">// current_、key_、value_ 都已指向同一个数据项. </span></span><br><span class="line">      value_ = Slice(p + non_shared, value_length); </span><br><span class="line">      </span><br><span class="line">      <span class="comment">// 因为 current_ 已经指向新的数据项, 所以它所处的 restart 段可能也递增了, </span></span><br><span class="line">      <span class="comment">// 那就破坏了与 restart_index_ 的一致性, 所以需要调整. </span></span><br><span class="line">      <span class="comment">// 下面循环干的事情, 就是要保持 restart_index_ 与 current_ 一致, </span></span><br><span class="line">      <span class="comment">// 即让 restart_index_ 指向 current_ 所处 restart 在数组中的索引值. </span></span><br><span class="line">      <span class="comment">// restart_index_ 如果指向最后一个 restart, 那么 current_ </span></span><br><span class="line">      <span class="comment">// 此时肯定也在最后一个 restart 段. </span></span><br><span class="line">      <span class="keyword">while</span> (restart_index_ + <span class="number">1</span> &lt; num_restarts_ &amp;&amp;</span><br><span class="line">             GetRestartPoint(restart_index_ + <span class="number">1</span>) &lt; current_) &#123; </span><br><span class="line">        ++restart_index_;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 根据用户定制的 comparator 构造该 block 的一个迭代器</span></span><br><span class="line"><span class="function">Iterator* <span class="title">Block::NewIterator</span><span class="params">(<span class="keyword">const</span> Comparator* cmp)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// block 尾部 4 字节为 restart 个数, 最少 4 字节</span></span><br><span class="line">  <span class="keyword">if</span> (size_ &lt; <span class="keyword">sizeof</span>(<span class="keyword">uint32_t</span>)) &#123; </span><br><span class="line">    <span class="keyword">return</span> NewErrorIterator(Status::Corruption(<span class="string">&quot;bad block contents&quot;</span>));</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">const</span> <span class="keyword">uint32_t</span> num_restarts = NumRestarts();</span><br><span class="line">  <span class="keyword">if</span> (num_restarts == <span class="number">0</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> NewEmptyIterator();</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// 将 block 作为数据源, 构造迭代器</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> Iter(cmp, data_, restart_offset_, num_restarts);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>从上面代码可以看出, 跟底层数据源相关的成员和方法都是 private 的, 迭代器接口方法实现都在 public 部分. 实现迭代器时依赖依赖两个重要的 private 方法, 一个是 <code>SeekToRestartPoint()</code> 一个是 <code>ParseNextKey()</code> 分别用于在迭代时实现先粗粒度后细粒度的目标定位.</p>
+<h1><span id="2-双层迭代器设计">2 双层迭代器设计</span></h1><p>双层迭代器, 对应的类为 <code>class leveldb::&lt;unnamed&gt;::TwoLevelIterator</code>, 位于 <code>table/two_level_iterator.cc</code> 文件. 它的父类为 <code>leveldb::Iterator</code>, 所以表现出来的性质是一样的.</p>
+<p>该类设计比较巧妙, 这主要是由 sstable 文件结构决定的. 具体地, 要想在 sstable 文件中找到某个 key/value 对, 肯定先要找到它所属的 data Block, 而要找到 data Block 就要先在 index block 找到其对应的 BlockHandle. 双层迭代器就是这个寻找过程的实现.</p>
+<p>该类包含两个迭代器封装：</p>
+<ul>
+<li>一个是 index_iter_, 它指向 index block 数据项. 针对每个 data block 都有一个对应的 entry 包含在 index block 中, entry 包含一个 key/value 对, 其中：<ul>
+<li>key 为大于等于对应 data block 最后(也是最大的, 因为排序过了)一个 key 同时小于接下来的 data block 的第一个 key 的(比较拗口)字符串; </li>
+<li>value 是指向一个对应 data block 的 BlockHandle. </li>
+</ul>
+</li>
+<li>另一个是 data_iter_, 它指向 data block 包含的数据项. 至于这个 data block 是否与 index_iter_ 所指数据项对应 data block 一致, 那要看实际情况, 不过即使不一致也无碍. </li>
+</ul>
+<p>这两个迭代器, 可以把 index_iter 看作钟表的时针, 指向具体小时, 可以把 data_iter_ 看作更精细的分针, 指向当前小时的具体分钟. 两个指针一起配合精确定位到我们要查询的数据. 这么说其实就能大体上猜出来, 迭代器前后移动, 定位等等这些方法是如何实现的了, 简单说就是先移动 <code>index_iter_</code> 再移动 <code>data_iter_</code>. 以 <code>Seek()</code> 方法举例来说:</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 根据 target 将 index_iter 和 data_iter 移动到对应位置</span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">TwoLevelIterator::Seek</span><span class="params">(<span class="keyword">const</span> Slice&amp; target)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 因为 index block 每个数据项的 key 是对应 data block 中最大的那个 key, </span></span><br><span class="line">  <span class="comment">// 所以 index block 数据项也是有序的, 不过比较&quot;宏观&quot; . </span></span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 先找到目标 data block</span></span><br><span class="line">  index_iter_.Seek(target);</span><br><span class="line">  <span class="comment">// 根据 index_iter_ 设置 data_iter_</span></span><br><span class="line">  InitDataBlock();</span><br><span class="line">  <span class="comment">// 然后在目标 data block 找到目标数据项</span></span><br><span class="line">  <span class="keyword">if</span> (data_iter_.iter() != <span class="literal">nullptr</span>) data_iter_.Seek(target); </span><br><span class="line">  <span class="comment">// data_iter_.iter() 为空则直接向前移动找到第一个不为空的</span></span><br><span class="line">  <span class="comment">// data block 的第一个数据项.</span></span><br><span class="line">  SkipEmptyDataBlocksForward(); </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看出, 双层迭代器设计具有分形的思想, 迭代器是由迭代器构成的.</p>
+<p>其它方法实现原理类似, 不再赘述.</p>
+<p>–End–</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/leveldb/" rel="tag"># leveldb</a>
+              <a href="/tags/LSM-Tree/" rel="tag"># LSM-Tree</a>
+              <a href="/tags/db/" rel="tag"># db</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/12/11/GFS-%E4%B8%80%E4%B8%AA%E9%AB%98%E5%8F%AF%E7%94%A8%E5%8F%AF%E6%89%A9%E5%B1%95%E7%9A%84%E5%88%86%E5%B8%83%E5%BC%8F%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F/" rel="prev" title="GFS: 一个高可用可扩展的分布式文件系统">
+      <i class="fa fa-chevron-left"></i> GFS: 一个高可用可扩展的分布式文件系统
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    
+  <div class="comments">
+    <div id="disqus_thread">
+      <noscript>Please enable JavaScript to view the comments powered by Disqus.</noscript>
+    </div>
+  </div>
+  
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Chienlung Cheung</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">tags</span>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Chienlung Cheung</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+if (document.querySelectorAll('pre.mermaid').length) {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/mermaid@8/dist/mermaid.min.js', () => {
+    mermaid.initialize({
+      theme    : 'forest',
+      logLevel : 3,
+      flowchart: { curve     : 'linear' },
+      gantt    : { axisFormat: '%m/%d/%Y' },
+      sequence : { actorMargin: 50 }
+    });
+  }, window.mermaid);
+}
+</script>
+
+
+  
+
+  
+      
+
+<script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+<script>
+  function loadCount() {
+    var d = document, s = d.createElement('script');
+    s.src = 'https://Chienlung.disqus.com/count.js';
+    s.id = 'dsq-count-scr';
+    (d.head || d.body).appendChild(s);
+  }
+  // defer loading until the whole page loading is completed
+  window.addEventListener('load', loadCount, false);
+</script>
+<script>
+  var disqus_config = function() {
+    this.page.url = "https://chienlungcheung.github.io/2021/02/05/leveldb-annotations-4-iterator/";
+    this.page.identifier = "2021/02/05/leveldb-annotations-4-iterator/";
+    this.page.title = "Leveldb 源码详解系列之四: 迭代器设计与实现";
+    };
+  NexT.utils.loadComments(document.querySelector('#disqus_thread'), () => {
+    if (window.DISQUS) {
+      DISQUS.reset({
+        reload: true,
+        config: disqus_config
+      });
+    } else {
+      var d = document, s = d.createElement('script');
+      s.src = 'https://Chienlung.disqus.com/embed.js';
+      s.setAttribute('data-timestamp', '' + +new Date());
+      (d.head || d.body).appendChild(s);
+    }
+  });
+</script>
+
+</body>
+</html>
