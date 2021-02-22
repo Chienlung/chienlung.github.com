@@ -186,7 +186,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-02-22 04:01:48" itemprop="dateModified" datetime="2021-02-22T04:01:48+00:00">2021-02-22</time>
+                <time title="Modified: 2021-02-22 11:59:06" itemprop="dateModified" datetime="2021-02-22T11:59:06+00:00">2021-02-22</time>
               </span>
 
           
@@ -251,6 +251,8 @@
 </li>
 <li>另一个是 data_iter_, 它指向 data block 包含的数据项. 至于这个 data block 是否与 index_iter_ 所指数据项对应 data block 一致, 那要看实际情况, 不过即使不一致也无碍. </li>
 </ul>
+<p>示意图如下:</p>
+<p><img src="/images/leveldb-annotations-4-iterator/1-two_level_iterator.png" alt="Figure 1"></p>
 <p>这两个迭代器, 可以把 index_iter 看作钟表的时针, 指向具体小时, 可以把 data_iter_ 看作更精细的分针, 指向当前小时的具体分钟. 两个指针一起配合精确定位到我们要查询的数据. 这么说其实就能大体上猜出来, 迭代器前后移动, 定位等等这些方法是如何实现的了, 简单说就是先移动 <code>index_iter_</code> 再移动 <code>data_iter_</code>. 以 <code>Seek()</code> 方法举例来说:</p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 根据 target 将 index_iter 和 data_iter 移动到对应位置</span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">TwoLevelIterator::Seek</span><span class="params">(<span class="keyword">const</span> Slice&amp; target)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 因为 index block 每个数据项的 key 是对应 data block 中最大的那个 key, </span></span><br><span class="line">  <span class="comment">// 所以 index block 数据项也是有序的, 不过比较&quot;宏观&quot; . </span></span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 先找到目标 data block</span></span><br><span class="line">  index_iter_.Seek(target);</span><br><span class="line">  <span class="comment">// 根据 index_iter_ 设置 data_iter_</span></span><br><span class="line">  InitDataBlock();</span><br><span class="line">  <span class="comment">// 然后在目标 data block 找到目标数据项</span></span><br><span class="line">  <span class="keyword">if</span> (data_iter_.iter() != <span class="literal">nullptr</span>) data_iter_.Seek(target); </span><br><span class="line">  <span class="comment">// data_iter_.iter() 为空则直接向前移动找到第一个不为空的</span></span><br><span class="line">  <span class="comment">// data block 的第一个数据项.</span></span><br><span class="line">  SkipEmptyDataBlocksForward(); </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -307,7 +309,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-02-22 04:01:48" itemprop="dateModified" datetime="2021-02-22T04:01:48+00:00">2021-02-22</time>
+                <time title="Modified: 2021-02-22 11:59:06" itemprop="dateModified" datetime="2021-02-22T11:59:06+00:00">2021-02-22</time>
               </span>
 
           
@@ -780,7 +782,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-02-22 04:01:48" itemprop="dateModified" datetime="2021-02-22T04:01:48+00:00">2021-02-22</time>
+                <time title="Modified: 2021-02-22 11:59:06" itemprop="dateModified" datetime="2021-02-22T11:59:06+00:00">2021-02-22</time>
               </span>
 
           
@@ -1101,7 +1103,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-02-22 04:01:48" itemprop="dateModified" datetime="2021-02-22T04:01:48+00:00">2021-02-22</time>
+                <time title="Modified: 2021-02-22 11:59:06" itemprop="dateModified" datetime="2021-02-22T11:59:06+00:00">2021-02-22</time>
               </span>
 
           
@@ -1612,7 +1614,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-02-22 04:01:48" itemprop="dateModified" datetime="2021-02-22T04:01:48+00:00">2021-02-22</time>
+                <time title="Modified: 2021-02-22 11:59:06" itemprop="dateModified" datetime="2021-02-22T11:59:06+00:00">2021-02-22</time>
               </span>
 
           
@@ -1769,7 +1771,7 @@ db/log_writer.cc</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-02-22 04:01:48" itemprop="dateModified" datetime="2021-02-22T04:01:48+00:00">2021-02-22</time>
+                <time title="Modified: 2021-02-22 11:59:06" itemprop="dateModified" datetime="2021-02-22T11:59:06+00:00">2021-02-22</time>
               </span>
 
           
@@ -1923,7 +1925,7 @@ db/log_writer.cc</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-02-22 04:01:48" itemprop="dateModified" datetime="2021-02-22T04:01:48+00:00">2021-02-22</time>
+                <time title="Modified: 2021-02-22 11:59:06" itemprop="dateModified" datetime="2021-02-22T11:59:06+00:00">2021-02-22</time>
               </span>
 
           
@@ -2334,7 +2336,7 @@ dbname/[0-9]+.(log|sst|ldb)</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-02-22 04:01:48" itemprop="dateModified" datetime="2021-02-22T04:01:48+00:00">2021-02-22</time>
+                <time title="Modified: 2021-02-22 11:59:06" itemprop="dateModified" datetime="2021-02-22T11:59:06+00:00">2021-02-22</time>
               </span>
 
           
@@ -2411,7 +2413,7 @@ dbname/[0-9]+.(log|sst|ldb)</code></pre>
 <!-- tocstop -->
 
 <p><strong>Leveldb</strong> 是一个高速 KV 数据库, 它提供了一个持久性的 KV 存储. 其中 keys 和 values 都是随机字节数组, 并且存储时根据用户指定的比较函数对 keys 进行排序. </p>
-<p>它由 Google 开发的, 其作者为大名鼎鼎的 Sanjay Ghemawat (<a href="mailto:&#x73;&#x61;&#x6e;&#106;&#97;&#121;&#x40;&#103;&#x6f;&#x6f;&#103;&#x6c;&#101;&#46;&#x63;&#111;&#x6d;">&#x73;&#x61;&#x6e;&#106;&#97;&#121;&#x40;&#103;&#x6f;&#x6f;&#103;&#x6c;&#101;&#46;&#x63;&#111;&#x6d;</a>) 和 Jeff Dean (<a href="mailto:&#x6a;&#101;&#x66;&#102;&#64;&#x67;&#x6f;&#111;&#103;&#108;&#x65;&#46;&#99;&#x6f;&#x6d;">&#x6a;&#101;&#x66;&#102;&#64;&#x67;&#x6f;&#111;&#103;&#108;&#x65;&#46;&#99;&#x6f;&#x6d;</a>). 感谢他们对人类的贡献.</p>
+<p>它由 Google 开发的, 其作者为大名鼎鼎的 Sanjay Ghemawat (<a href="mailto:&#x73;&#97;&#x6e;&#x6a;&#x61;&#121;&#64;&#x67;&#x6f;&#x6f;&#103;&#108;&#x65;&#46;&#x63;&#x6f;&#x6d;">&#x73;&#97;&#x6e;&#x6a;&#x61;&#121;&#64;&#x67;&#x6f;&#x6f;&#103;&#108;&#x65;&#46;&#x63;&#x6f;&#x6d;</a>) 和 Jeff Dean (<a href="mailto:&#x6a;&#101;&#x66;&#102;&#64;&#103;&#x6f;&#x6f;&#103;&#108;&#x65;&#x2e;&#99;&#x6f;&#109;">&#x6a;&#101;&#x66;&#102;&#64;&#103;&#x6f;&#x6f;&#103;&#108;&#x65;&#x2e;&#99;&#x6f;&#109;</a>). 感谢他们对人类的贡献.</p>
 <h1><span id="基本介绍">基本介绍</span></h1><p>该部分主要介绍 leveldb 的功能, 局限性以及性能等.</p>
 <h2><span id="特性">特性</span></h2><ul>
 <li>keys 和 values 都可以是随机的字节数组. </li>
@@ -2627,7 +2629,7 @@ dbname/[0-9]+.(log|sst|ldb)</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-02-22 04:01:48" itemprop="dateModified" datetime="2021-02-22T04:01:48+00:00">2021-02-22</time>
+                <time title="Modified: 2021-02-22 11:59:06" itemprop="dateModified" datetime="2021-02-22T11:59:06+00:00">2021-02-22</time>
               </span>
 
           
