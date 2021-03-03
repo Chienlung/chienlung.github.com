@@ -180,7 +180,7 @@
               <span class="post-meta-item-text">Posted on</span>
               
 
-              <time title="Created: 2021-03-03 19:42:52 / Modified: 09:09:31" itemprop="dateCreated datePublished" datetime="2021-03-03T19:42:52+00:00">2021-03-03</time>
+              <time title="Created: 2021-03-03 19:42:52 / Modified: 09:19:19" itemprop="dateCreated datePublished" datetime="2021-03-03T19:42:52+00:00">2021-03-03</time>
             </span>
 
           
@@ -246,7 +246,10 @@
 </ul>
 <!-- tocstop -->
 
-<h1><span id="1-简要介绍">1 简要介绍</span></h1><p>map 用于处理原始记录, 输出中间 <code>&lt;k, v&gt;</code>; reduce 基于 k 把中间数据合并, 输出 <code>&lt;k, List&lt;v&gt;&gt;</code>.</p>
+<p>本文基于内部分享 &lt;”抄”能力养成系列 – MapReduce: 分布式计算系统设计与实现&gt; 整理.</p>
+<p>2003 年开始 Google 陆续放出三套系统的设计(GFS/MapReduce/Bigtable), 在互联网届掀起云计算狂潮一直影响至今. MapReduce 作为老二出场, 因为它的实现依赖于之前分享的 GFS 作为存储. 该论文一出, 便直接催生了 Hadoop 另一个重量级同名框架 MapReduce 的诞生. 时光荏苒, 虽然后面又出现了 spark/flink, 但是 MapReduce 在批处理领域的地位至今牢固. 下面就让我们一起看看 MapReduce 的设计, 希望为各位后续系统研发提供灵感. (Salute to Jeff).</p>
+<h1><span id="1-简要介绍">1 简要介绍</span></h1><p>这个模型说起来真是简单至极, 非常符合直觉, 就是说给非互联网行业的人, 也能听明白. 该模型跟函数式语言中的 map-reduce 理念基本一样, 不过这个是分布式的.</p>
+<p>map 用于处理原始记录, 输出中间 <code>&lt;k, v&gt;</code>; reduce 基于 k 把中间数据合并, 输出 <code>&lt;k, List&lt;v&gt;&gt;</code>.</p>
 <ul>
 <li>并行化</li>
 <li>容错</li>
@@ -418,7 +421,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-03-03 09:09:31" itemprop="dateModified" datetime="2021-03-03T09:09:31+00:00">2021-03-03</time>
+                <time title="Modified: 2021-03-03 09:19:19" itemprop="dateModified" datetime="2021-03-03T09:19:19+00:00">2021-03-03</time>
               </span>
 
           
@@ -541,7 +544,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-03-03 09:09:31" itemprop="dateModified" datetime="2021-03-03T09:09:31+00:00">2021-03-03</time>
+                <time title="Modified: 2021-03-03 09:19:19" itemprop="dateModified" datetime="2021-03-03T09:19:19+00:00">2021-03-03</time>
               </span>
 
           
@@ -640,7 +643,7 @@
 <!-- tocstop -->
 
 <p>本文基于内部分享 &lt;”抄”能力养成系列 – GFS 设计&gt; 整理.</p>
-<p>2003 年开始 Google 陆续放出三套系统的设计(GFS/MapReduce/Bigtable), 在互联网届掀起云计算狂潮一直影响至今. GFS 作为发轫, 目前许多业界知名的分布式系统设计仍然有着它的影子. 下面就让我们一起看看 GFS 的设计, 希望为各位后续系统研发提供灵感。</p>
+<p>2003 年开始 Google 陆续放出三套系统的设计(GFS/MapReduce/Bigtable), 在互联网届掀起云计算狂潮一直影响至今. 该论文一出, 便催生了 Hadoop 中的 HDFS 的诞生. GFS 作为发轫, 目前许多业界知名的分布式系统设计仍然有着它的影子. 下面就让我们一起看看 GFS 的设计, 希望为各位后续系统研发提供灵感。(Salute to Jeff).</p>
 <h1><span id="1-gfs-诞生背景">1 GFS 诞生背景</span></h1><ul>
 <li>1, 组件失效是常态而非例外</li>
 <li>2, 按传统标准, 现实世界的文件太大了, 一般都几个 GB, 个数多了单机存不下.</li>
@@ -1014,7 +1017,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-03-03 09:09:31" itemprop="dateModified" datetime="2021-03-03T09:09:31+00:00">2021-03-03</time>
+                <time title="Modified: 2021-03-03 09:19:19" itemprop="dateModified" datetime="2021-03-03T09:19:19+00:00">2021-03-03</time>
               </span>
 
           
@@ -1335,7 +1338,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-03-03 09:09:31" itemprop="dateModified" datetime="2021-03-03T09:09:31+00:00">2021-03-03</time>
+                <time title="Modified: 2021-03-03 09:19:19" itemprop="dateModified" datetime="2021-03-03T09:19:19+00:00">2021-03-03</time>
               </span>
 
           
@@ -1846,7 +1849,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-03-03 09:09:31" itemprop="dateModified" datetime="2021-03-03T09:09:31+00:00">2021-03-03</time>
+                <time title="Modified: 2021-03-03 09:19:19" itemprop="dateModified" datetime="2021-03-03T09:19:19+00:00">2021-03-03</time>
               </span>
 
           
@@ -2003,7 +2006,7 @@ db/log_writer.cc</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-03-03 09:09:31" itemprop="dateModified" datetime="2021-03-03T09:09:31+00:00">2021-03-03</time>
+                <time title="Modified: 2021-03-03 09:19:19" itemprop="dateModified" datetime="2021-03-03T09:19:19+00:00">2021-03-03</time>
               </span>
 
           
@@ -2157,7 +2160,7 @@ db/log_writer.cc</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-03-03 09:09:31" itemprop="dateModified" datetime="2021-03-03T09:09:31+00:00">2021-03-03</time>
+                <time title="Modified: 2021-03-03 09:19:19" itemprop="dateModified" datetime="2021-03-03T09:19:19+00:00">2021-03-03</time>
               </span>
 
           
@@ -2568,7 +2571,7 @@ dbname/[0-9]+.(log|sst|ldb)</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-03-03 09:09:31" itemprop="dateModified" datetime="2021-03-03T09:09:31+00:00">2021-03-03</time>
+                <time title="Modified: 2021-03-03 09:19:19" itemprop="dateModified" datetime="2021-03-03T09:19:19+00:00">2021-03-03</time>
               </span>
 
           
@@ -2645,7 +2648,7 @@ dbname/[0-9]+.(log|sst|ldb)</code></pre>
 <!-- tocstop -->
 
 <p><strong>Leveldb</strong> 是一个高速 KV 数据库, 它提供了一个持久性的 KV 存储. 其中 keys 和 values 都是随机字节数组, 并且存储时根据用户指定的比较函数对 keys 进行排序. </p>
-<p>它由 Google 开发的, 其作者为大名鼎鼎的 Sanjay Ghemawat (<a href="mailto:&#x73;&#97;&#x6e;&#106;&#x61;&#x79;&#64;&#103;&#111;&#x6f;&#x67;&#x6c;&#x65;&#x2e;&#x63;&#x6f;&#109;">&#x73;&#97;&#x6e;&#106;&#x61;&#x79;&#64;&#103;&#111;&#x6f;&#x67;&#x6c;&#x65;&#x2e;&#x63;&#x6f;&#109;</a>) 和 Jeff Dean (<a href="mailto:&#106;&#x65;&#102;&#102;&#64;&#103;&#111;&#111;&#103;&#108;&#x65;&#x2e;&#x63;&#x6f;&#x6d;">&#106;&#x65;&#102;&#102;&#64;&#103;&#111;&#111;&#103;&#108;&#x65;&#x2e;&#x63;&#x6f;&#x6d;</a>). 感谢他们对人类的贡献.</p>
+<p>它由 Google 开发的, 其作者为大名鼎鼎的 Sanjay Ghemawat (<a href="mailto:&#x73;&#x61;&#x6e;&#x6a;&#x61;&#121;&#x40;&#103;&#111;&#111;&#103;&#x6c;&#101;&#46;&#99;&#111;&#109;">&#x73;&#x61;&#x6e;&#x6a;&#x61;&#121;&#x40;&#103;&#111;&#111;&#103;&#x6c;&#101;&#46;&#99;&#111;&#109;</a>) 和 Jeff Dean (<a href="mailto:&#106;&#101;&#x66;&#102;&#x40;&#103;&#x6f;&#x6f;&#x67;&#x6c;&#x65;&#46;&#x63;&#x6f;&#109;">&#106;&#101;&#x66;&#102;&#x40;&#103;&#x6f;&#x6f;&#x67;&#x6c;&#x65;&#46;&#x63;&#x6f;&#109;</a>). 感谢他们对人类的贡献.</p>
 <h1><span id="基本介绍">基本介绍</span></h1><p>该部分主要介绍 leveldb 的功能, 局限性以及性能等.</p>
 <h2><span id="特性">特性</span></h2><ul>
 <li>keys 和 values 都可以是随机的字节数组. </li>
@@ -2861,7 +2864,7 @@ dbname/[0-9]+.(log|sst|ldb)</code></pre>
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-03-03 09:09:31" itemprop="dateModified" datetime="2021-03-03T09:09:31+00:00">2021-03-03</time>
+                <time title="Modified: 2021-03-03 09:19:19" itemprop="dateModified" datetime="2021-03-03T09:19:19+00:00">2021-03-03</time>
               </span>
 
           
