@@ -28,7 +28,7 @@
 <meta property="og:description" content="1 核心文件和核心类 2 MemTable 核心成员变量 3 MemTable 核心方法 3.1 MemTable 写方法 3.2 MemTable 读方法 3.3 MemTable 迭代器 3.4 MemTable 内存估计   4 MemTable 比较器之 KeyComparator 5 MemTable 内存管理之 Arena 5.1 如何向 Arena 申请指定大小的内存 5.2">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2020-10-01T21:47:36.000Z">
-<meta property="article:modified_time" content="2021-03-03T09:19:19.993Z">
+<meta property="article:modified_time" content="2021-05-28T09:20:45.700Z">
 <meta property="article:author" content="Chienlung Cheung">
 <meta property="article:tag" content="leveldb">
 <meta property="article:tag" content="LSM-Tree">
@@ -193,7 +193,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-03-03 09:19:19" itemprop="dateModified" datetime="2021-03-03T09:19:19+00:00">2021-03-03</time>
+                <time title="Modified: 2021-05-28 09:20:45" itemprop="dateModified" datetime="2021-05-28T09:20:45+00:00">2021-05-28</time>
               </span>
 
           
@@ -366,7 +366,7 @@
 <p>当用户调用 DB 的 <code>Get</code> 方法查询某个 key 的时候, 具体步骤是这样的(具体实现位于 <code>leveldb::Status leveldb::Version::Get(const leveldb::ReadOptions &amp;options, const leveldb::LookupKey &amp;k, string *value, leveldb::Version::GetStats *stats)</code>, DB 的 <code>Get</code> 方法会调用前述实现.):</p>
 <ul>
 <li>1 先查询当前在用的 memtable, 查到返回, 未查到下一步</li>
-<li>2 查询正在转换为 sorted table 的 memtable 中寻找, 查到返回, 未查到下一步 </li>
+<li>2 查询正在转换为 sorted string table 的 memtable 中寻找, 查到返回, 未查到下一步 </li>
 <li>3 在磁盘上采用从底向上 level-by-level 的寻找目标 key. <ul>
 <li>由于 level 越低数据越新, 因此, 当我们在一个较低的 level 找到数据的时候, 不用在更高的 levels 找了.</li>
 <li>由于 level-0 文件之间可能存在重叠, 而且针对同一个 key, 后产生的文件数据更新所以先将包含 key 的文件找出来按照文件号从大到小(对应文件从新到老)排序查找 key; 针对 level-1 及其以上 level, 由于每个 level 内文件之间不存在重叠, 于是在每个 level 中直接采用二分查找定位 key.</li>
@@ -759,7 +759,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">10</span>
+          <span class="site-state-item-count">11</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>

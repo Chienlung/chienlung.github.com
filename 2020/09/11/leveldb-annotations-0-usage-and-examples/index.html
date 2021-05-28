@@ -28,7 +28,7 @@
 <meta property="og:description" content="基本介绍 特性 局限性 性能 测试配置 写性能 读性能     使用举例 构建 头文件介绍 打开(或新建)一个数据库 Status 类型 关闭数据库 数据库读写 原子更新 同步写操作 并发 迭代数据库 快照 Slice 切片 比较器 后向兼容性   性能调优 Block 大小 压缩 缓存 Key 的布局设计 过滤器   校验和 近似空间大小 环境变量 移植性      Leveldb 是一个">
 <meta property="og:locale" content="en_US">
 <meta property="article:published_time" content="2020-09-11T21:13:08.000Z">
-<meta property="article:modified_time" content="2021-03-03T09:19:19.993Z">
+<meta property="article:modified_time" content="2021-05-28T09:20:45.700Z">
 <meta property="article:author" content="Chienlung Cheung">
 <meta property="article:tag" content="leveldb">
 <meta property="article:tag" content="LSM-Tree">
@@ -193,7 +193,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2021-03-03 09:19:19" itemprop="dateModified" datetime="2021-03-03T09:19:19+00:00">2021-03-03</time>
+                <time title="Modified: 2021-05-28 09:20:45" itemprop="dateModified" datetime="2021-05-28T09:20:45+00:00">2021-05-28</time>
               </span>
 
           
@@ -270,7 +270,7 @@
 <!-- tocstop -->
 
 <p><strong>Leveldb</strong> 是一个高速 KV 数据库, 它提供了一个持久性的 KV 存储. 其中 keys 和 values 都是随机字节数组, 并且存储时根据用户指定的比较函数对 keys 进行排序. </p>
-<p>它由 Google 开发的, 其作者为大名鼎鼎的 Sanjay Ghemawat (<a href="mailto:&#x73;&#x61;&#x6e;&#x6a;&#x61;&#121;&#x40;&#103;&#111;&#111;&#103;&#x6c;&#101;&#46;&#99;&#111;&#109;">&#x73;&#x61;&#x6e;&#x6a;&#x61;&#121;&#x40;&#103;&#111;&#111;&#103;&#x6c;&#101;&#46;&#99;&#111;&#109;</a>) 和 Jeff Dean (<a href="mailto:&#106;&#101;&#x66;&#102;&#x40;&#103;&#x6f;&#x6f;&#x67;&#x6c;&#x65;&#46;&#x63;&#x6f;&#109;">&#106;&#101;&#x66;&#102;&#x40;&#103;&#x6f;&#x6f;&#x67;&#x6c;&#x65;&#46;&#x63;&#x6f;&#109;</a>). 感谢他们对人类的贡献.</p>
+<p>它由 Google 开发的, 其作者为大名鼎鼎的 Sanjay Ghemawat (<a href="mailto:&#x73;&#97;&#x6e;&#106;&#97;&#x79;&#64;&#103;&#x6f;&#111;&#103;&#108;&#101;&#46;&#99;&#111;&#109;">&#x73;&#97;&#x6e;&#106;&#97;&#x79;&#64;&#103;&#x6f;&#111;&#103;&#108;&#101;&#46;&#99;&#111;&#109;</a>) 和 Jeff Dean (<a href="mailto:&#106;&#101;&#102;&#x66;&#64;&#x67;&#111;&#x6f;&#103;&#108;&#101;&#x2e;&#x63;&#111;&#x6d;">&#106;&#101;&#102;&#x66;&#64;&#x67;&#111;&#x6f;&#103;&#108;&#101;&#x2e;&#x63;&#111;&#x6d;</a>). 感谢他们对人类的贡献.</p>
 <h1><span id="基本介绍">基本介绍</span></h1><p>该部分主要介绍 leveldb 的功能, 局限性以及性能等.</p>
 <h2><span id="特性">特性</span></h2><ul>
 <li>keys 和 values 都可以是随机的字节数组. </li>
@@ -398,7 +398,7 @@
 <li>(c) 修改比较器函数以让其使用版本号来决定如何进行排序. </li>
 </ul>
 <h2><span id="性能调优">性能调优</span></h2><p>通过修改 <code>include/leveldb/options.h</code> 中定义的类型的默认值来对 leveldb 的性能进行调优. </p>
-<h3><span id="block-大小">Block 大小</span></h3><p>Leveldb 把相邻的 keys 组织在同一个 block 中(具体见后面文章针对 sorted table 文件格式的描述), 而且 block 是 leveldb 把数据从内存到转移到持久化存储和从持久化存储转移到内存的基本单位. 默认的, 压缩前 block 大约为 4KB. 经常处理大块数据的应用可能希望把这个值调大, 而针对数据做”点读” 的应用可能希望这个值小一点, 这样性能可能会更高一些. 但是, 没有证据表明该值小于 1KB 或者大于几个 MB 的时候性能会表现更好. 同时要注意, 针对大的 block size, 压缩效率会更高一些. </p>
+<h3><span id="block-大小">Block 大小</span></h3><p>Leveldb 把相邻的 keys 组织在同一个 block 中(具体见后面文章针对 sorted string table 文件格式的描述), 而且 block 是 leveldb 把数据从内存到转移到持久化存储和从持久化存储转移到内存的基本单位. 默认的, 压缩前 block 大约为 4KB. 经常处理大块数据的应用可能希望把这个值调大, 而针对数据做”点读” 的应用可能希望这个值小一点, 这样性能可能会更高一些. 但是, 没有证据表明该值小于 1KB 或者大于几个 MB 的时候性能会表现更好. 同时要注意, 针对大的 block size, 压缩效率会更高一些. </p>
 <h3><span id="压缩">压缩</span></h3><p>每个 block 在写入持久存储之前都会被单独压缩. 压缩默认是开启的, 因为默认的压缩算法非常快, 而且对于不可压缩的数据会自动关闭压缩功能. 极少有场景会让用户想要完全关闭压缩功能, 除非基准测试显示关闭压缩会显著改善性能. 按照下面方式做就关闭了压缩功能: </p>
 <figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">leveldb::Options options;</span><br><span class="line">options.compression = leveldb::kNoCompression;</span><br><span class="line">... leveldb::DB::Open(options, name, ...) ....</span><br></pre></td></tr></table></figure>
 
@@ -541,7 +541,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">10</span>
+          <span class="site-state-item-count">11</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
